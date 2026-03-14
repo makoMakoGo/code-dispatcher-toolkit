@@ -58,21 +58,63 @@
 
 注：依赖指是否依赖 code-dispatcher CLI 进行调度和执行。
 
-| 名称 | 用途 | 依赖  |
-| --- | --- | --- |
-| `code-dispatcher` | 执行器使用说明；统一 3 个后端 `codex/claude/gemini`；核心机制 `--parallel` 和 `--resume` | 必需 |
-| `dev` | 需求澄清 → 计划 → 选择后端 → 并行执行（DAG 调度） → 验证 | 必需 |
-| `wave` | 迭代式波次并行执行（host agent 每波动态拆任务 → 并行派单 → 看结果 → 下一波） | 必需 |
-| `code-council` | 多视角并行代码评审（2–3 个 AI reviewer 并行 + host agent 终审） | 必需 |
-| `github-issue-pr-flow` | 自主 Issue → PR 交付流程（分解 → 实现 → 开 PR → 处理 review → squash merge） | 可选 |
-| `pr-review-reply` | 自主处理 PR 上的 bot review（Gemini / CodeRabbit 等）→ 验证 → 修复或反驳 → 回复线程 → resolve | 可选 |
+<table>
+<tr>
+  <th>名称</th>
+  <th>用途</th>
+  <th width="60">依赖</th>
+</tr>
+<tr>
+  <td><code>code&#8209;dispatcher</code></td>
+  <td>执行器使用说明；统一 3 个后端 <code>codex/claude/gemini</code>；核心机制 <code>--parallel</code> 和 <code>--resume</code></td>
+  <td>必需</td>
+</tr>
+<tr>
+  <td><code>dev</code></td>
+  <td>需求澄清 → 计划 → 选择后端 → 并行执行（DAG 调度） → 验证</td>
+  <td>必需</td>
+</tr>
+<tr>
+  <td><code>wave</code></td>
+  <td>迭代式波次并行执行（host agent 每波动态拆任务 → 并行派单 → 看结果 → 下一波）</td>
+  <td>必需</td>
+</tr>
+<tr>
+  <td><code>code&#8209;council</code></td>
+  <td>多视角并行代码评审（2–3 个 AI reviewer 并行 + host agent 终审）</td>
+  <td>必需</td>
+</tr>
+<tr>
+  <td><a href="docs/github-issue-pr-flow.md"><code>github&#8209;issue&#8209;pr&#8209;flow</code></a></td>
+  <td>自主 Issue → PR 交付流程（分解 → 实现 → 开 PR → 处理 review → squash merge）</td>
+  <td>可选</td>
+</tr>
+<tr>
+  <td><a href="docs/pr-review-reply.md"><code>pr&#8209;review&#8209;reply</code></a></td>
+  <td>自主处理 PR 上的 bot review（Gemini / CodeRabbit 等）→ 验证 → 修复或反驳 → 回复线程 → resolve</td>
+  <td>可选</td>
+</tr>
+</table>
 
 ### Bundles
 
-| 名称 | 用途 | 依赖 |
-| --- | --- | --- |
-| `codex-review-loop` | Claude Code 的 review loop 套件；由 `commands/`、`hooks/`、`settings.json` 组成，Stop 时触发 Codex review | 否 |
-| `harness` | Claude Code 的长任务套件；提供状态持久化、恢复、依赖调度和 SessionStart/Stop hooks | 否 |
+<table>
+<tr>
+  <th>名称</th>
+  <th>用途</th>
+  <th width="60">依赖</th>
+</tr>
+<tr>
+  <td><code>codex&#8209;review&#8209;loop</code></td>
+  <td>Claude Code 的 review loop 套件；由 <code>commands/</code>、<code>hooks/</code>、<code>settings.json</code> 组成，Stop 时触发 Codex review</td>
+  <td>否</td>
+</tr>
+<tr>
+  <td><code>harness</code></td>
+  <td>Claude Code 的长任务套件；提供状态持久化、恢复、依赖调度和 SessionStart/Stop hooks</td>
+  <td>否</td>
+</tr>
+</table>
 
 > [!NOTE]
 > 部分 bundle 并非原创，只是 move 过来方便个人管理和安装。

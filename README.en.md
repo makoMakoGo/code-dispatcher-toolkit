@@ -58,21 +58,63 @@ Backend positioning (recommended only, can specify freely):
 
 Note: "Dependency" indicates whether the skill relies on the code-dispatcher CLI for scheduling and execution.
 
-| Name | Purpose | Dependency |
-| --- | --- | --- |
-| `code-dispatcher` | Executor usage guide; unified 3 backends `codex/claude/gemini`; core mechanisms `--parallel` and `--resume` | Required |
-| `dev` | Requirements clarification → plan → select backend → parallel execution (DAG scheduling) → verification | Required |
-| `wave` | Iterative wave-based parallel execution (host agent decomposes each wave → parallel dispatch → review results → next wave) | Required |
-| `code-council` | Multi-perspective parallel code review (2–3 AI reviewers in parallel + host agent final pass) | Required |
-| `github-issue-pr-flow` | Autonomous issue-to-PR delivery (decompose → implement → open PR → handle reviews → squash merge) | Optional |
-| `pr-review-reply` | Autonomous bot-review triage on PRs (Gemini / CodeRabbit etc.) → verify → fix or rebut → reply in thread → resolve | Optional |
+<table>
+<tr>
+  <th>Name</th>
+  <th>Purpose</th>
+  <th width="80">Dependency</th>
+</tr>
+<tr>
+  <td><code>code&#8209;dispatcher</code></td>
+  <td>Executor usage guide; unified 3 backends <code>codex/claude/gemini</code>; core mechanisms <code>--parallel</code> and <code>--resume</code></td>
+  <td>Required</td>
+</tr>
+<tr>
+  <td><code>dev</code></td>
+  <td>Requirements clarification → plan → select backend → parallel execution (DAG scheduling) → verification</td>
+  <td>Required</td>
+</tr>
+<tr>
+  <td><code>wave</code></td>
+  <td>Iterative wave-based parallel execution (host agent decomposes each wave → parallel dispatch → review results → next wave)</td>
+  <td>Required</td>
+</tr>
+<tr>
+  <td><code>code&#8209;council</code></td>
+  <td>Multi-perspective parallel code review (2–3 AI reviewers in parallel + host agent final pass)</td>
+  <td>Required</td>
+</tr>
+<tr>
+  <td><a href="docs/github-issue-pr-flow.md"><code>github&#8209;issue&#8209;pr&#8209;flow</code></a></td>
+  <td>Autonomous issue-to-PR delivery (decompose → implement → open PR → handle reviews → squash merge)</td>
+  <td>Optional</td>
+</tr>
+<tr>
+  <td><a href="docs/pr-review-reply.md"><code>pr&#8209;review&#8209;reply</code></a></td>
+  <td>Autonomous bot-review triage on PRs (Gemini / CodeRabbit etc.) → verify → fix or rebut → reply in thread → resolve</td>
+  <td>Optional</td>
+</tr>
+</table>
 
 ### Bundles
 
-| Name | Purpose | Dependency |
-| --- | --- | --- |
-| `codex-review-loop` | Claude Code review loop bundle; composed of `commands/`, `hooks/`, `settings.json`; triggers Codex review on Stop | No |
-| `harness` | Claude Code long-running task bundle; provides state persistence, recovery, dependency scheduling, and SessionStart/Stop hooks | No |
+<table>
+<tr>
+  <th>Name</th>
+  <th>Purpose</th>
+  <th width="80">Dependency</th>
+</tr>
+<tr>
+  <td><code>codex&#8209;review&#8209;loop</code></td>
+  <td>Claude Code review loop bundle; composed of <code>commands/</code>, <code>hooks/</code>, <code>settings.json</code>; triggers Codex review on Stop</td>
+  <td>No</td>
+</tr>
+<tr>
+  <td><code>harness</code></td>
+  <td>Claude Code long-running task bundle; provides state persistence, recovery, dependency scheduling, and SessionStart/Stop hooks</td>
+  <td>No</td>
+</tr>
+</table>
 
 > [!NOTE]
 > Some bundles are not original to this repository — brought here for easier personal management and installation.
