@@ -104,35 +104,6 @@ Multi-backend parallel code review solution, simultaneously launching 2-3 indepe
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### `github-issue-pr-flow`
-
-Complete Issue-to-PR closed-loop delivery workflow, automatically completing requirement decomposition, code implementation, PR submission, code review handling, and final squash-merge.
-
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│                    github-issue-pr-flow Process                  │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│   Phase 0      Phase 1       Phase 2       Phase 3              │
-│   ┌───┐       ┌───┐        ┌───┐        ┌───┐                 │
-│   │Sync│  →   │Decompose│→ │Implement│→ │Open PR│                │
-│   │Baseline│    │Issue  │     │Branch  │    │Link│                │
-│   └───┘       └───┘        └───┘        └───┘                 │
-│     │                                          │                │
-│     │    Phase 6      Phase 5       Phase 4    │                │
-│     │    ┌───┐       ┌───┐        ┌───┐       │                │
-│     └──→ │Merge│ ←   │Handle│ ←   │Gather│ ←─────┘                │
-│          │Close│       │Review│       │Signals│                      │
-│          └───┘       └───┘        └───┘                      │
-│            │                                            │      │
-│            └────────────────────────────────────────────┘      │
-│                          Loop (max 3 rounds)                     │
-│                                                                 │
-│   squash-merge → delete remote branch → verify issue closed     │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
-
 ### `pr-review-reply`
 
 Specialized workflow for processing automated bot reviews (e.g., Gemini, CodeRabbit). Automatically reads review comments, validates each finding, decides to fix or rebut, and replies/resolves in the corresponding GitHub review thread.
@@ -177,10 +148,3 @@ Specialized workflow for processing automated bot reviews (e.g., Gemini, CodeRab
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-
-## Bundles List
-
-This repo no longer maintains these two bundles directly. They have moved to `fish-claude`:
-
-- `harness`: [fish-claude/packs/harness](../../fish-claude/packs/harness)
-- `codex-review-loop`: [fish-claude/packs/codex-review-loop](../../fish-claude/packs/codex-review-loop)

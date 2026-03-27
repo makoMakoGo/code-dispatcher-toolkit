@@ -1,9 +1,11 @@
 ---
 name: github-issue-pr-flow
-description: "Autonomous GitHub issue-to-PR delivery workflow with review-signal triage and squash-merge closure. Use when handling end-to-end issue-driven implementation, PR lifecycle automation, or review rebut/fix loops."
+description: "Deprecated archive. Former autonomous GitHub issue-to-PR delivery workflow kept only for reference."
 ---
 
 # GitHub Issue → PR Delivery Flow
+
+> Deprecated: archived because this skill mixed issue decomposition, implementation, PR lifecycle automation, review triage, and merge closure into one overly coupled workflow. Prefer smaller workflows instead.
 
 ## Autonomy Directive
 This skill is a **fully autonomous pipeline**. Once invoked, execute all phases (0–6) for ALL issues without pausing for user confirmation between phases or between issues.

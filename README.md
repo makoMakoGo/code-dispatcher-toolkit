@@ -80,38 +80,11 @@
   <td>必需</td>
 </tr>
 <tr>
-  <td><a href="docs/github-issue-pr-flow.md"><code>github&#8209;issue&#8209;pr&#8209;flow</code></a></td>
-  <td>自主 Issue → PR 交付流程（分解 → 实现 → 开 PR → 处理 review → squash merge）</td>
-  <td>可选</td>
-</tr>
-<tr>
   <td><a href="docs/pr-review-reply.md"><code>pr&#8209;review&#8209;reply</code></a></td>
   <td>自主处理 PR 上的 bot review（Gemini / CodeRabbit 等）→ 验证 → 修复或反驳 → 回复线程 → resolve</td>
   <td>可选</td>
 </tr>
 </table>
-
-### Bundles
-
-<table>
-<tr>
-  <th>名称</th>
-  <th>用途</th>
-  <th width="60">依赖</th>
-</tr>
-<tr>
-  <td>无</td>
-  <td>该仓库不再直接分发 bundle；请改用 fish-claude 的 pack：</td>
-  <td><a href="../fish-claude/packs/harness">harness</a>, <a href="../fish-claude/packs/codex-review-loop">codex-review-loop</a></td>
-</tr>
-</table>
-
-> [!NOTE]
-> 部分 bundle 并非原创，只是 move 过来方便个人管理和安装。
-> - `harness` 基于 [`cexll/myclaude`](https://github.com/cexll/myclaude) ported。
-> - `codex-review-loop` 基于 [`hamelsmu/claude-review-loop`](https://github.com/hamelsmu/claude-review-loop) adapted。
->
-> 具体 upstream、改动范围与当前仓库适配方式见各自 bundle 目录下的 README。
 
 ## 安装
 
@@ -170,22 +143,15 @@ echo 'set -gx PATH "$HOME/.code-dispatcher/bin" $PATH' >> ~/.config/fish/config.
 - OpenCode : `~/.config/opencode/skills`
 - Gemini CLI : `~/.gemini/skills`
 
-### Step 3: 挑选 Skills / Bundles
+### Step 3: 挑选 Skills
 
 接下来你可以参照 `docs/skills-and-bundles.md` 了解具体用途，挑选你需要的功能模块进行安装：
 
 **Skills**：Skill 是跨 agent 通用的功能模块，核心是 `SKILL.md` 定义文件，部分还包含 `references/` 参考文档。安装时将对应的 skill 目录复制到目标 agent 的 skills 目录，以 Claude 为例：
-  - 全局：`~/.claude/skills/<skill-name>/` 
+  - 全局：`~/.claude/skills/<skill-name>/`
   - 项目级：`<path to your project>/.claude/skills/<skill-name>/`
 
-
-其中 `dev` skill 建议配合注入 `templates/dev-skill-constraint.md` 到用户级配置。一些典型用法：
-
-**Bundles**：Bundle 是 Claude Code 专用套件，通常包含 hooks 和 settings，部分还包含 commands 或 skill 定义。安装步骤因 bundle 而异：
-  - 若包含 `commands/`：复制到 `.claude/commands/`
-  - 若包含 `hooks/`：复制到 `.claude/hooks/`，并确保脚本有执行权限
-  - 若包含 `SKILL.md`：将 `SKILL.md`（及可选的 `references/`）复制到 `.claude/skills/<bundle-name>/`
-  - 将 `settings.json` 中的 hooks 配置合并到 `.claude/settings.json` 或 `.claude/settings.local.json`
+其中 `dev` skill 建议配合注入 `templates/dev-skill-constraint.md` 到用户级配置。典型用法：
 
 ```text
 # 显式触发

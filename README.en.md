@@ -80,38 +80,11 @@ Note: "Dependency" indicates whether the skill relies on the code-dispatcher CLI
   <td>Required</td>
 </tr>
 <tr>
-  <td><a href="docs/github-issue-pr-flow.md"><code>github&#8209;issue&#8209;pr&#8209;flow</code></a></td>
-  <td>Autonomous issue-to-PR delivery (decompose → implement → open PR → handle reviews → squash merge)</td>
-  <td>Optional</td>
-</tr>
-<tr>
   <td><a href="docs/pr-review-reply.md"><code>pr&#8209;review&#8209;reply</code></a></td>
   <td>Autonomous bot-review triage on PRs (Gemini / CodeRabbit etc.) → verify → fix or rebut → reply in thread → resolve</td>
   <td>Optional</td>
 </tr>
 </table>
-
-### Bundles
-
-<table>
-<tr>
-  <th>Name</th>
-  <th>Purpose</th>
-  <th width="80">Dependency</th>
-</tr>
-<tr>
-  <td>None in this repo</td>
-  <td>Bundles moved to fish-claude packs:</td>
-  <td><a href="../fish-claude/packs/harness">harness</a>, <a href="../fish-claude/packs/codex-review-loop">codex-review-loop</a></td>
-</tr>
-</table>
-
-> [!NOTE]
-> Some bundles are not original to this repository — brought here for easier personal management and installation.
-> - `harness` is ported from [`cexll/myclaude`](https://github.com/cexll/myclaude).
-> - `codex-review-loop` is adapted from [`hamelsmu/claude-review-loop`](https://github.com/hamelsmu/claude-review-loop).
->
-> See each bundle README for the specific upstream relationship, adaptation scope, and toolkit-specific packaging details.
 
 ## Installation
 
@@ -170,7 +143,7 @@ Copy the `code-dispatcher` skill to the appropriate directory based on your targ
 - OpenCode: `~/.config/opencode/skills`
 - Gemini CLI: `~/.gemini/skills`
 
-### Step 3: Select Skills / Bundles
+### Step 3: Select Skills
 
 Refer to `docs/skills-and-bundles.en.md` for specific purposes, then select the functional modules you need:
 
@@ -179,12 +152,6 @@ Refer to `docs/skills-and-bundles.en.md` for specific purposes, then select the 
 - Project-level: `<path to your project>/.claude/skills/<skill-name>/`
 
 The `dev` skill is recommended to be used with `templates/dev-skill-constraint.md` injected into user-level configuration. Typical usage:
-
-**Bundles**: Bundles are Claude Code-specific packages, usually containing hooks and settings, and some also include commands or skill definitions. Installation steps vary by bundle:
-- If containing `commands/`: copy to `.claude/commands/`
-- If containing `hooks/`: copy to `.claude/hooks/`, and ensure scripts have execute permissions
-- If containing `SKILL.md`: copy `SKILL.md` (and optional `references/`) to `.claude/skills/<bundle-name>/`
-- Merge hooks configuration from `settings.json` into `.claude/settings.json` or `.claude/settings.local.json`
 
 ```text
 # Explicit trigger
