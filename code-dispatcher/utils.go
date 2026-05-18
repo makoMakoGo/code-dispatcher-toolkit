@@ -53,6 +53,8 @@ func shouldUseStdin(taskText string, piped bool) bool {
 	return strings.ContainsAny(taskText, stdinSpecialChars)
 }
 
+const filePathTrimCutset = "`,\"'():[]"
+
 func defaultIsTerminal() bool {
 	fi, err := os.Stdin.Stat()
 	if err != nil {
@@ -490,7 +492,7 @@ func extractFilesChangedFromLines(lines []string) []string {
 		for _, prefix := range []string{"Modified:", "Created:", "Updated:", "Edited:", "Wrote:", "Changed:"} {
 			if strings.HasPrefix(line, prefix) {
 				file := strings.TrimSpace(strings.TrimPrefix(line, prefix))
-				file = strings.Trim(file, "`,\"'():[]")
+				file = strings.Trim(file, filePathTrimCutset)
 				file = strings.TrimPrefix(file, "@")
 				if file != "" && !seen[file] {
 					files = append(files, file)
@@ -507,7 +509,7 @@ func extractFilesChangedFromLines(lines []string) []string {
 		// Pattern 2: Tokens that look like file paths (allow root files, strip @ prefix).
 		parts := strings.Fields(line)
 		for _, part := range parts {
-			part = strings.Trim(part, "`,\"'():[]")
+			part = strings.Trim(part, filePathTrimCutset)
 			part = strings.TrimPrefix(part, "@")
 			for _, ext := range exts {
 				if strings.HasSuffix(part, ext) && !seen[part] {

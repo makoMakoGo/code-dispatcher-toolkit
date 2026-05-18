@@ -34,6 +34,7 @@ func resetTestHooks() {
 	signalNotifyCtxFn = signal.NotifyContext
 	buildArgsFn = buildCodexArgs
 	selectBackendFn = selectBackend
+	removeLogFileFn = os.Remove
 	commandContext = exec.CommandContext
 	newCommandRunner = func(ctx context.Context, name string, args ...string) commandRunner {
 		return &realCmd{cmd: commandContext(ctx, name, args...)}
@@ -2423,6 +2424,42 @@ func TestLoggerPathAndRemoveNil(t *testing.T) {
 	}
 	if err := logger.RemoveLogFile(); err != nil {
 		t.Fatalf("expected nil logger RemoveLogFile to be no-op, got %v", err)
+	}
+}
+
+func TestRunWarnsWhenLogRemovalFails(t *testing.T) {
+	defer resetTestHooks()
+
+	tmp := t.TempDir()
+	t.Setenv("TMPDIR", tmp)
+	cleanupLogsFn = func() (CleanupStats, error) { return CleanupStats{}, nil }
+	removeErr := errors.New("remove denied")
+	removeLogFileFn = func(path string) error {
+		if strings.HasPrefix(path, tmp) {
+			return removeErr
+		}
+		return os.Remove(path)
+	}
+	buildArgsFn = func(cfg *Config, targetArg string) []string { return []string{targetArg} }
+	selectBackendFn = func(name string) (Backend, error) {
+		return testBackend{name: name, command: "unused"}, nil
+	}
+	runTaskFn = func(task TaskSpec, silent bool, timeout int) TaskResult {
+		logError("backend failed")
+		return TaskResult{ExitCode: 1, Error: "backend failed"}
+	}
+
+	os.Args = []string{"code-dispatcher", "--backend", "codex", "fail"}
+	var exitCode int
+	errOutput := captureStderr(t, func() {
+		exitCode = run()
+	})
+
+	if exitCode != 1 {
+		t.Fatalf("run exit = %d, want 1", exitCode)
+	}
+	if !strings.Contains(errOutput, "WARN: failed to remove log file") || !strings.Contains(errOutput, removeErr.Error()) {
+		t.Fatalf("stderr missing removal warning, got %q", errOutput)
 	}
 }
 

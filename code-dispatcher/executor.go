@@ -294,9 +294,10 @@ func defaultRunParallelTaskFn(task TaskSpec, timeout int) TaskResult {
 	task.Backend = backend.Name()
 	task.UseStdin = task.UseStdin || shouldUseStdin(task.Task, false)
 
-	parentCtx := task.Context
-	if parentCtx == nil {
-		parentCtx = context.Background()
+	parentCtx := context.Background()
+	if task.Context != nil {
+		parentCtx = task.Context
+		task.Context = nil
 	}
 	return runTaskWithContext(parentCtx, task, backend, nil, false, true, timeout)
 }
@@ -1302,11 +1303,11 @@ waitLoop:
 }
 
 func effectiveTaskContext(parentCtx, taskCtx context.Context) context.Context {
-	if parentCtx != nil {
-		return parentCtx
-	}
 	if taskCtx != nil {
 		return taskCtx
+	}
+	if parentCtx != nil {
+		return parentCtx
 	}
 	return context.Background()
 }

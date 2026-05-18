@@ -1064,6 +1064,40 @@ func TestExecutorTaskLoggerContext(t *testing.T) {
 	}
 }
 
+func TestEffectiveTaskContextPrefersTaskContext(t *testing.T) {
+	parentLogger, err := NewLoggerWithSuffix("executor-parentctx")
+	if err != nil {
+		t.Fatalf("NewLoggerWithSuffix(parent) error = %v", err)
+	}
+	t.Cleanup(func() {
+		_ = parentLogger.Close()
+		_ = os.Remove(parentLogger.Path())
+	})
+
+	taskLogger, err := NewLoggerWithSuffix("executor-taskctx-priority")
+	if err != nil {
+		t.Fatalf("NewLoggerWithSuffix(task) error = %v", err)
+	}
+	t.Cleanup(func() {
+		_ = taskLogger.Close()
+		_ = os.Remove(taskLogger.Path())
+	})
+
+	parentCtx := withTaskLogger(context.Background(), parentLogger)
+	taskCtx := withTaskLogger(context.Background(), taskLogger)
+
+	if got := taskLoggerFromContext(effectiveTaskContext(parentCtx, taskCtx)); got != taskLogger {
+		t.Fatalf("expected task context logger to win, got %v", got)
+	}
+	if got := taskLoggerFromContext(effectiveTaskContext(parentCtx, nil)); got != parentLogger {
+		t.Fatalf("expected parent context fallback, got %v", got)
+	}
+	nilCtx := nilContextForFallbackTest()
+	if got := effectiveTaskContext(nilCtx, nilCtx); got == nil {
+		t.Fatalf("expected background context fallback")
+	}
+}
+
 func TestExecutorExecuteConcurrentWithContextBranches(t *testing.T) {
 	devNull, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
 	if err != nil {
