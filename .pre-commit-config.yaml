@@ -1,0 +1,14 @@
+repos:
+  - repo: local
+    hooks:
+      - id: code-dispatcher-quality
+        name: code-dispatcher quality checks
+        entry: bash scripts/quality-check.sh
+        language: system
+        pass_filenames: false
+
+      - id: code-dispatcher-tests
+        name: code-dispatcher tests with coverage gate
+        entry: bash scripts/test-coverage.sh
+        language: system
+        pass_filenames: false

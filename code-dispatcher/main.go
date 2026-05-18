@@ -149,9 +149,7 @@ func run() (exitCode int) {
 					fmt.Fprintf(os.Stderr, "Log file: %s (deleted)\n", logger.Path())
 				}
 			}
-			if err := logger.RemoveLogFile(); err != nil && !os.IsNotExist(err) {
-				// Silently ignore removal errors
-			}
+			_ = logger.RemoveLogFile()
 		}
 	}()
 	defer runCleanupHook()

@@ -64,4 +64,3 @@ func TestUnixSignalFallbackForNonRealProcess(t *testing.T) {
 		t.Fatalf("expected fallback process Kill to be called")
 	}
 }
-
