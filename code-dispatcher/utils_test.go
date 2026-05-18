@@ -65,6 +65,8 @@ func TestExtractFilesChanged(t *testing.T) {
 		{"path file", "Created: code-dispatcher/utils.go\n", []string{"code-dispatcher/utils.go"}},
 		{"at prefix", "Updated: @code-dispatcher/main.go\n", []string{"code-dispatcher/main.go"}},
 		{"token scan", "Files: @main.go, @code-dispatcher/utils.go\n", []string{"main.go", "code-dispatcher/utils.go"}},
+		{"prefix trailing comma", "Modified: a.go,\n", []string{"a.go"}},
+		{"token trailing comma", "Files: a.go, b.go\n", []string{"a.go", "b.go"}},
 		{"space path", "Modified: dir/with space/file.go\n", []string{"dir/with space/file.go"}},
 	}
 

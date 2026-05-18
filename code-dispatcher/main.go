@@ -138,18 +138,27 @@ func run() (exitCode int) {
 		if err := closeLogger(); err != nil {
 			fmt.Fprintf(os.Stderr, "ERROR: failed to close logger: %v\n", err)
 		}
-		// On failure, extract and display recent errors before removing log
+		// On failure, display recent errors and report log cleanup status.
 		if logger != nil {
+			var recentErrors []string
 			if exitCode != 0 {
-				if errors := logger.ExtractRecentErrors(10); len(errors) > 0 {
-					fmt.Fprintln(os.Stderr, "\n=== Recent Errors ===")
-					for _, entry := range errors {
-						fmt.Fprintln(os.Stderr, entry)
-					}
+				recentErrors = logger.ExtractRecentErrors(10)
+			}
+			removeErr := logger.RemoveLogFile()
+			if len(recentErrors) > 0 {
+				fmt.Fprintln(os.Stderr, "\n=== Recent Errors ===")
+				for _, entry := range recentErrors {
+					fmt.Fprintln(os.Stderr, entry)
+				}
+				if removeErr != nil && !os.IsNotExist(removeErr) {
+					fmt.Fprintf(os.Stderr, "Log file: %s\n", logger.Path())
+				} else {
 					fmt.Fprintf(os.Stderr, "Log file: %s (deleted)\n", logger.Path())
 				}
 			}
-			_ = logger.RemoveLogFile()
+			if removeErr != nil && !os.IsNotExist(removeErr) {
+				fmt.Fprintf(os.Stderr, "WARN: failed to remove log file %s: %v\n", logger.Path(), removeErr)
+			}
 		}
 	}()
 	defer runCleanupHook()

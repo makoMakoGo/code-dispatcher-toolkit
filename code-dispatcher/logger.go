@@ -261,7 +261,7 @@ func (l *Logger) RemoveLogFile() error {
 	if l == nil {
 		return nil
 	}
-	return os.Remove(l.path)
+	return removeLogFileFn(l.path)
 }
 
 // ExtractRecentErrors returns the most recent ERROR and WARN entries from memory cache.
