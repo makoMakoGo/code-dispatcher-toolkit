@@ -699,7 +699,7 @@ func TestRunStartupCleanupRemovesOrphansEndToEnd(t *testing.T) {
 	orphanC := createTempLog(t, tempDir, "code-dispatcher-5003-suffix.log")
 	runningPID := 81234
 	runningLog := createTempLog(t, tempDir, fmt.Sprintf("code-dispatcher-%d.log", runningPID))
-unrelated := createTempLog(t, tempDir, "potato.log")
+	unrelated := createTempLog(t, tempDir, "potato.log")
 
 	stubProcessRunning(t, func(pid int) bool {
 		return pid == runningPID || pid == os.Getpid()

@@ -226,10 +226,7 @@ func withTaskLogger(ctx context.Context, logger *Logger) context.Context {
 }
 
 func taskLoggerFromContext(ctx context.Context) *Logger {
-	if ctx == nil {
-		return nil
-	}
-	logger, _ := ctx.Value(taskLoggerContextKey{}).(*Logger)
+	logger, _ := effectiveContext(ctx).Value(taskLoggerContextKey{}).(*Logger)
 	return logger
 }
 
@@ -825,12 +822,7 @@ func runBackendProcess(parentCtx context.Context, backendArgs []string, taskText
 }
 
 func runTaskWithContext(parentCtx context.Context, taskSpec TaskSpec, backend Backend, customArgs []string, useCustomArgs bool, silent bool, timeoutSec int) TaskResult {
-	if parentCtx == nil {
-		parentCtx = taskSpec.Context
-	}
-	if parentCtx == nil {
-		parentCtx = context.Background()
-	}
+	parentCtx = effectiveTaskContext(parentCtx, taskSpec.Context)
 
 	result := TaskResult{TaskID: taskSpec.ID}
 	injectedLogger := taskLoggerFromContext(parentCtx)
@@ -1307,6 +1299,23 @@ waitLoop:
 	}
 
 	return result
+}
+
+func effectiveTaskContext(parentCtx, taskCtx context.Context) context.Context {
+	if parentCtx != nil {
+		return parentCtx
+	}
+	if taskCtx != nil {
+		return taskCtx
+	}
+	return context.Background()
+}
+
+func effectiveContext(ctx context.Context) context.Context {
+	if ctx != nil {
+		return ctx
+	}
+	return context.Background()
 }
 
 func forwardSignals(ctx context.Context, cmd commandRunner, logErrorFn func(string)) {

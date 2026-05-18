@@ -4130,10 +4130,13 @@ printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"l
 	stdinReader = strings.NewReader("")
 	os.Args = []string{"code-dispatcher", "--backend", "codex", "task"}
 
-	var cancel context.CancelFunc
+	cancelCh := make(chan context.CancelFunc, 1)
 	signalNotifyCtxFn = func(parent context.Context, _ ...os.Signal) (context.Context, context.CancelFunc) {
 		ctx, c := context.WithCancel(parent)
-		cancel = c
+		select {
+		case cancelCh <- c:
+		default:
+		}
 		return ctx, c
 	}
 
@@ -4148,11 +4151,10 @@ printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"l
 		time.Sleep(10 * time.Millisecond)
 	}
 
-	deadline = time.Now().Add(1 * time.Second)
-	for time.Now().Before(deadline) && cancel == nil {
-		time.Sleep(5 * time.Millisecond)
-	}
-	if cancel == nil {
+	var cancel context.CancelFunc
+	select {
+	case cancel = <-cancelCh:
+	case <-time.After(1 * time.Second):
 		t.Fatalf("signalNotifyCtxFn was not called")
 	}
 	cancel()

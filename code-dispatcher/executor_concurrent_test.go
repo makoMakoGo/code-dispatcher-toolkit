@@ -629,7 +629,8 @@ func TestExecutorRunTaskWithContext(t *testing.T) {
 		})
 
 		ctx := withTaskLogger(context.Background(), taskLogger)
-		res := runTaskWithContext(nil, TaskSpec{ID: "task-context", Task: "payload", WorkDir: ".", Context: ctx}, nil, nil, false, true, 1)
+		parentCtx := nilContextForFallbackTest()
+		res := runTaskWithContext(parentCtx, TaskSpec{ID: "task-context", Task: "payload", WorkDir: ".", Context: ctx}, nil, nil, false, true, 1)
 		if res.ExitCode != 0 || res.LogPath != taskLogger.Path() {
 			t.Fatalf("expected task logger to be reused from spec context, got %+v", res)
 		}
@@ -658,7 +659,8 @@ func TestExecutorRunTaskWithContext(t *testing.T) {
 		}
 
 		_ = closeLogger()
-		res := runTaskWithContext(nil, TaskSpec{ID: "task-backend", Task: "payload", WorkDir: "/tmp"}, ClaudeBackend{}, nil, false, false, 1)
+		parentCtx := nilContextForFallbackTest()
+		res := runTaskWithContext(parentCtx, TaskSpec{ID: "task-backend", Task: "payload", WorkDir: "/tmp"}, ClaudeBackend{}, nil, false, false, 1)
 		if res.ExitCode != 0 || res.Message != "backend" {
 			t.Fatalf("unexpected result: %+v", res)
 		}
@@ -757,7 +759,8 @@ func TestExecutorParallelLogIsolation(t *testing.T) {
 	os.Stderr = stderrW
 	defer func() { os.Stderr = oldStderr }()
 
-	results := executeConcurrentWithContext(nil, [][]TaskSpec{{{ID: taskA}, {ID: taskB}}}, 1, -1)
+	parentCtx := nilContextForFallbackTest()
+	results := executeConcurrentWithContext(parentCtx, [][]TaskSpec{{{ID: taskA}, {ID: taskB}}}, 1, -1)
 
 	_ = stderrW.Close()
 	os.Stderr = oldStderr
@@ -1034,7 +1037,8 @@ func parseTaskIDFromLogLine(line string) (string, bool) {
 }
 
 func TestExecutorTaskLoggerContext(t *testing.T) {
-	if taskLoggerFromContext(nil) != nil {
+	nilCtx := nilContextForFallbackTest()
+	if taskLoggerFromContext(nilCtx) != nil {
 		t.Fatalf("expected nil logger from nil context")
 	}
 	if taskLoggerFromContext(context.Background()) != nil {

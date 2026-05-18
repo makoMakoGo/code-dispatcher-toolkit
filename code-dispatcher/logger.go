@@ -591,10 +591,7 @@ func isPIDReused(logPath string, pid int) bool {
 	if procStartTime.IsZero() {
 		// Can't determine process start time
 		// Check if file is very old (>7 days), likely from a dead process
-		if time.Since(fileModTime) > 7*24*time.Hour {
-			return true // File is old enough to be from a different process
-		}
-		return false // Be conservative for recent files
+		return time.Since(fileModTime) > 7*24*time.Hour
 	}
 
 	// If the log file was modified before the process started, PID was reused

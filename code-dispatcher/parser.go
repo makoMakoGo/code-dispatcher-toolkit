@@ -53,14 +53,6 @@ func parseJSONStreamWithLog(r io.Reader, warnFn func(string), infoFn func(string
 	return parseJSONStreamInternal(r, warnFn, infoFn, nil, nil)
 }
 
-func parseBackendStreamWithWarn(r io.Reader, backendName string, warnFn func(string)) (message, threadID string) {
-	return parseBackendStreamWithLog(r, backendName, warnFn, logInfo)
-}
-
-func parseBackendStreamWithLog(r io.Reader, backendName string, warnFn func(string), infoFn func(string)) (message, threadID string) {
-	return parseBackendStreamInternal(r, backendName, warnFn, infoFn, nil, nil)
-}
-
 const (
 	jsonLineReaderSize   = 64 * 1024
 	jsonLineMaxBytes     = 10 * 1024 * 1024

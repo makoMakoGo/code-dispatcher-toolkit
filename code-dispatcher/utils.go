@@ -50,7 +50,7 @@ func shouldUseStdin(taskText string, piped bool) bool {
 	if len(taskText) > 800 {
 		return true
 	}
-	return strings.IndexAny(taskText, stdinSpecialChars) >= 0
+	return strings.ContainsAny(taskText, stdinSpecialChars)
 }
 
 func defaultIsTerminal() bool {
@@ -490,7 +490,7 @@ func extractFilesChangedFromLines(lines []string) []string {
 		for _, prefix := range []string{"Modified:", "Created:", "Updated:", "Edited:", "Wrote:", "Changed:"} {
 			if strings.HasPrefix(line, prefix) {
 				file := strings.TrimSpace(strings.TrimPrefix(line, prefix))
-				file = strings.Trim(file, "`,\"'()[],:")
+				file = strings.Trim(file, "`,\"'():[]")
 				file = strings.TrimPrefix(file, "@")
 				if file != "" && !seen[file] {
 					files = append(files, file)
@@ -507,7 +507,7 @@ func extractFilesChangedFromLines(lines []string) []string {
 		// Pattern 2: Tokens that look like file paths (allow root files, strip @ prefix).
 		parts := strings.Fields(line)
 		for _, part := range parts {
-			part = strings.Trim(part, "`,\"'()[],:")
+			part = strings.Trim(part, "`,\"'():[]")
 			part = strings.TrimPrefix(part, "@")
 			for _, ext := range exts {
 				if strings.HasSuffix(part, ext) && !seen[part] {
@@ -631,50 +631,6 @@ func extractNumberBefore(s string, idx int) int {
 		return num
 	}
 	return 0
-}
-
-// extractKeyOutputFromLines extracts key output from pre-split lines.
-func extractKeyOutputFromLines(lines []string, maxLen int) string {
-	if len(lines) == 0 || maxLen <= 0 {
-		return ""
-	}
-
-	// Priority 1: Look for explicit summary lines
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		lower := strings.ToLower(line)
-		if strings.HasPrefix(lower, "summary:") || strings.HasPrefix(lower, "completed:") ||
-			strings.HasPrefix(lower, "implemented:") || strings.HasPrefix(lower, "added:") ||
-			strings.HasPrefix(lower, "created:") || strings.HasPrefix(lower, "fixed:") {
-			content := line
-			for _, prefix := range []string{"Summary:", "Completed:", "Implemented:", "Added:", "Created:", "Fixed:",
-				"summary:", "completed:", "implemented:", "added:", "created:", "fixed:"} {
-				content = strings.TrimPrefix(content, prefix)
-			}
-			content = strings.TrimSpace(content)
-			if len(content) > 0 {
-				return safeTruncate(content, maxLen)
-			}
-		}
-	}
-
-	// Priority 2: First meaningful line (skip noise)
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "```") || strings.HasPrefix(line, "---") ||
-			strings.HasPrefix(line, "#") || strings.HasPrefix(line, "//") {
-			continue
-		}
-		// Skip very short lines (likely headers or markers)
-		if len(line) < 20 {
-			continue
-		}
-		return safeTruncate(line, maxLen)
-	}
-
-	// Fallback: truncate entire message
-	clean := strings.TrimSpace(strings.Join(lines, "\n"))
-	return safeTruncate(clean, maxLen)
 }
 
 // extractCoverageGap extracts what's missing from coverage reports
