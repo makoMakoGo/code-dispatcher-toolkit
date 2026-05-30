@@ -195,3 +195,9 @@ python3 install.py --install-dir "$tmpdir/.code-dispatcher" --skip-dispatcher --
 python3 install.py --install-dir "$tmpdir/.code-dispatcher" --force
 rm -rf "$tmpdir"
 ```
+
+## Community / Contributing
+
+This is a non-commercial open-source project maintained independently. Bug reports, documentation fixes, usage feedback, and focused small PRs are welcome.
+
+Before submitting changes, please run the relevant verification commands above.
