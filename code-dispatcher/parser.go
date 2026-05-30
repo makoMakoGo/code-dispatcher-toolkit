@@ -238,7 +238,7 @@ func parseJSONStreamInternalWithHooks(r io.Reader, warnFn func(string), infoFn f
 
 		// Handle Claude events
 		if isClaude {
-			if event.SessionID != "" && threadID == "" {
+			if event.SessionID != "" && isAuthoritativeClaudeSessionEvent(event) {
 				threadID = event.SessionID
 			}
 
@@ -318,6 +318,13 @@ func parseJSONStreamInternalWithHooks(r io.Reader, warnFn func(string), infoFn f
 
 	infoFn(fmt.Sprintf("parseJSONStream completed: events=%d, message_len=%d, thread_id_found=%t", totalEvents, len(message), threadID != ""))
 	return message, threadID
+}
+
+func isAuthoritativeClaudeSessionEvent(event UnifiedEvent) bool {
+	if event.Type == "result" {
+		return true
+	}
+	return event.Type == "system" && event.Subtype == "init"
 }
 
 func hasKey(m map[string]json.RawMessage, key string) bool {
