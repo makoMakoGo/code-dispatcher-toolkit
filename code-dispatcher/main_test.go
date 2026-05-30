@@ -2004,6 +2004,22 @@ func TestBackendParseJSONStream_ClaudeEvents(t *testing.T) {
 	}
 }
 
+func TestBackendParseJSONStream_ClaudeResumeIgnoresHookSessionID(t *testing.T) {
+	input := `{"type":"system","subtype":"hook_started","session_id":"hook-session"}
+{"type":"system","subtype":"hook_response","session_id":"hook-session"}
+{"type":"system","subtype":"init","session_id":"resumed-session"}
+{"type":"result","subtype":"success","result":"Hello!","session_id":"resumed-session"}`
+
+	message, threadID := parseJSONStream(strings.NewReader(input))
+
+	if message != "Hello!" {
+		t.Fatalf("message=%q, want %q", message, "Hello!")
+	}
+	if threadID != "resumed-session" {
+		t.Fatalf("threadID=%q, want %q", threadID, "resumed-session")
+	}
+}
+
 func TestBackendParseJSONStream_ClaudeEvents_ItemDoesNotForceCodex(t *testing.T) {
 	tests := []struct {
 		name  string
