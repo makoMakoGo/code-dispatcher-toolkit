@@ -14,7 +14,7 @@ code-dispatcher is a multi-backend AI coding toolkit: a Go CLI that dispatches t
 - Skills: `dev`, `code-dispatcher`, `pr-review-reply`
 - `docs/`: documentation (`runtime-config.md`, `runtime-config.en.md`, `code-dispatcher.md`, `dev.md`, `pr-review-reply.md`)
 - `prompts/`: per-backend default prompt templates (`claude-prompt.md`, `codex-prompt.md`, `gemini-prompt.md`)
-- `templates/`: scaffold templates (`dev-skill-constraint.md`, `runtime-config.env`)
+- `templates/`: scaffold templates (`runtime-config.env`)
 - `scripts/`: build scripts (`build-dist.sh`)
 - `install.py` / `uninstall.py`: installer and uninstaller
 - `dist/`: build outputs (gitignored)

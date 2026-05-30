@@ -146,7 +146,7 @@ echo 'set -gx PATH "$HOME/.code-dispatcher/bin" $PATH' >> ~/.config/fish/config.
   - 全局：`~/.claude/skills/<skill-name>/`
   - 项目级：`<path to your project>/.claude/skills/<skill-name>/`
 
-其中 `dev` skill 建议配合注入 `templates/dev-skill-constraint.md` 到用户级配置。典型用法：
+其中 `dev` skill 是 Claude Code manual-only skill，通过 `/dev` 显式调用。典型用法：
 
 ```text
 # 显式触发

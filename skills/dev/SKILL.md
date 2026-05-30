@@ -1,6 +1,7 @@
 ---
 name: dev
-description: "End-to-end development workflow orchestrator. Triggers on /dev command or when the user requests a complete feature implementation cycle with planning, parallel execution, and test validation. Orchestrates 7 steps: backend selection, requirements, code-dispatcher analysis, dev plan, parallel execution, coverage validation (>=90%), and summary. All code changes and codebase analysis are delegated to code-dispatcher. Depends on the code-dispatcher skill."
+description: "Claude Code /dev manual-only end-to-end development workflow orchestrator. Use only when the user explicitly invokes /dev. Orchestrates 7 steps: backend selection, requirements, code-dispatcher analysis, dev plan, parallel execution, coverage validation (>=90%), and summary. All code changes and codebase analysis are delegated to code-dispatcher. Depends on the code-dispatcher skill."
+disable-model-invocation: true
 ---
 
 # /dev Workflow

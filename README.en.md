@@ -146,7 +146,7 @@ Refer to individual skill docs for specific purposes, then select the functional
 - Global: `~/.claude/skills/<skill-name>/`
 - Project-level: `<path to your project>/.claude/skills/<skill-name>/`
 
-The `dev` skill is recommended to be used with `templates/dev-skill-constraint.md` injected into user-level configuration. Typical usage:
+The `dev` skill is a Claude Code manual-only skill, invoked explicitly with `/dev`. Typical usage:
 
 ```text
 # Explicit trigger
