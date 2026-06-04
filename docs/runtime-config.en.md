@@ -24,7 +24,6 @@ All backends run with "bypass approval" mode by default (not toggleable):
 
 - `codex`: `--dangerously-bypass-approvals-and-sandbox`
 - `claude`: `--dangerously-skip-permissions`
-- `gemini`: `-y`
 
 ## 3) Runtime Fields in `.env`
 
@@ -47,10 +46,6 @@ All backends run with "bypass approval" mode by default (not toggleable):
 
 ### Backend Model Override
 
-- `CODE_DISPATCHER_GEMINI_MODEL`
-  - Optional; if set, passes `-m <value>` to gemini CLI
-  - Example: `gemini-2.5-pro`
-
 - `CODE_DISPATCHER_CODEX_MODEL`
   - Optional; if set, passes `-m <value>` to codex CLI
   - Example: `gpt-5.4`
@@ -65,7 +60,7 @@ Prompt files are loaded from:
 ~/.code-dispatcher/prompts/<backend>-prompt.md
 ```
 
-Supported backends: `codex`, `claude`, `gemini`.
+Supported backends: `codex`, `claude`.
 
 The installer does not overwrite existing prompt files unless `python3 install.py --force` is used. After default prompt contracts change, existing installations must sync these files manually or reinstall with `--force`.
 

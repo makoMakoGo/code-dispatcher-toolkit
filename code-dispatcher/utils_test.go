@@ -31,6 +31,51 @@ func TestExtractCoverage(t *testing.T) {
 	}
 }
 
+func TestExtractCoverageNum(t *testing.T) {
+	tests := []struct {
+		in   string
+		want float64
+	}{
+		{"92%", 92},
+		{"92.5%", 92.5},
+		{"", 0},
+		{"not-a-number", 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.in, func(t *testing.T) {
+			if got := extractCoverageNum(tt.in); got != tt.want {
+				t.Fatalf("extractCoverageNum(%q) = %v, want %v", tt.in, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestExtractCoverageGap(t *testing.T) {
+	longLine := "missing coverage: " + strings.Repeat("x", 120)
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"empty", "", ""},
+		{"uncovered line", "ok\nsrc/foo.go:12 is uncovered\n", "src/foo.go:12 is uncovered"},
+		{"not covered", "branch not covered in parser.go", "branch not covered in parser.go"},
+		{"branch not taken", "utils.go:42 branch was not taken", "utils.go:42 branch was not taken"},
+		{"function zero percent", "function parseThing 0%", "function parseThing 0%"},
+		{"truncates long line", longLine, longLine[:97] + "..."},
+		{"no gap", "coverage: 92%", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := extractCoverageGap(tt.in); got != tt.want {
+				t.Fatalf("extractCoverageGap(%q) = %q, want %q", tt.in, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestExtractTestResults(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -50,6 +95,29 @@ func TestExtractTestResults(t *testing.T) {
 			passed, failed := extractTestResults(tt.in)
 			if passed != tt.wantPassed || failed != tt.wantFailed {
 				t.Fatalf("extractTestResults(%q) = (%d, %d), want (%d, %d)", tt.in, passed, failed, tt.wantPassed, tt.wantFailed)
+			}
+		})
+	}
+}
+
+func TestExtractErrorDetail(t *testing.T) {
+	tests := []struct {
+		name   string
+		in     string
+		maxLen int
+		want   string
+	}{
+		{"empty", "", 100, ""},
+		{"zero max", "error: broken", 0, ""},
+		{"error lines", "info\nerror: failed request\nat stack(one)\nat stack(two)\nexpected ok", 200, "error: failed request | expected ok"},
+		{"fallback tail", "a\nb\nc\nd\ne\nf", 100, "b | c | d | e | f"},
+		{"truncates", "error: " + strings.Repeat("x", 50), 12, "error: xx..."},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := extractErrorDetail(tt.in, tt.maxLen); got != tt.want {
+				t.Fatalf("extractErrorDetail(%q, %d) = %q, want %q", tt.in, tt.maxLen, got, tt.want)
 			}
 		})
 	}

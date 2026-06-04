@@ -62,7 +62,6 @@ type TaskResult struct {
 var backendRegistry = map[string]Backend{
 	"codex":  CodexBackend{},
 	"claude": ClaudeBackend{},
-	"gemini": GeminiBackend{},
 }
 
 func selectBackend(name string) (Backend, error) {
@@ -244,7 +243,7 @@ func parseArgs() (*Config, error) {
 		return nil, fmt.Errorf("task required")
 	}
 	if !backendSpecified {
-		return nil, fmt.Errorf("--backend is required (supported: codex, claude, gemini)")
+		return nil, fmt.Errorf("--backend is required (supported: codex, claude)")
 	}
 	args = filtered
 

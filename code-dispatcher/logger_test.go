@@ -564,13 +564,10 @@ func TestLoggerCoverageSuite(t *testing.T) {
 		{"TestBackendBuildArgs_CodexBackend", TestBackendBuildArgs_CodexBackend},
 		{"TestBackendBuildArgs_ClaudeBackend", TestBackendBuildArgs_ClaudeBackend},
 		{"TestClaudeBackendBuildArgs_OutputValidation", TestClaudeBackendBuildArgs_OutputValidation},
-		{"TestBackendBuildArgs_GeminiBackend", TestBackendBuildArgs_GeminiBackend},
-		{"TestGeminiBackendBuildArgs_OutputValidation", TestGeminiBackendBuildArgs_OutputValidation},
 		{"TestBackendNamesAndCommands", TestBackendNamesAndCommands},
 
 		{"TestBackendParseJSONStream", TestBackendParseJSONStream},
 		{"TestBackendParseJSONStream_ClaudeEvents", TestBackendParseJSONStream_ClaudeEvents},
-		{"TestBackendParseJSONStream_GeminiEvents", TestBackendParseJSONStream_GeminiEvents},
 		{"TestBackendParseJSONStreamWithWarn_InvalidLine", TestBackendParseJSONStreamWithWarn_InvalidLine},
 		{"TestBackendParseJSONStream_OnMessage", TestBackendParseJSONStream_OnMessage},
 		{"TestBackendParseJSONStream_ScannerError", TestBackendParseJSONStream_ScannerError},

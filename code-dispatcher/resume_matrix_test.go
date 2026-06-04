@@ -61,26 +61,6 @@ func TestResumeConversation_SupportedBackends(t *testing.T) {
 				return nil
 			},
 		},
-		{
-			name:         "gemini",
-			backend:      GeminiBackend{},
-			sessionID:    "sid_gemini",
-			newOutput:    `{"type":"result","session_id":"sid_gemini","status":"success","content":"M1"}` + "\n",
-			resumeOutput: `{"type":"result","session_id":"sid_gemini","status":"success","content":"M2"}` + "\n",
-			checkNewArgs: func(args []string) error {
-				if strings.Contains(strings.Join(args, " "), " -r ") {
-					return fmt.Errorf("unexpected -r in args: %v", args)
-				}
-				return nil
-			},
-			checkResArgs: func(args []string, sid string) error {
-				joined := strings.Join(args, " ")
-				if !strings.Contains(joined, " -r "+sid+" ") {
-					return fmt.Errorf("missing -r %s in args: %v", sid, args)
-				}
-				return nil
-			},
-		},
 	}
 
 	for _, tt := range cases {
@@ -100,13 +80,17 @@ func TestResumeConversation_SupportedBackends(t *testing.T) {
 					if err := tt.checkNewArgs(args); err != nil {
 						t.Fatalf("new args check failed: %v", err)
 					}
-					return newFakeCmd(fakeCmdConfig{StdoutPlan: []fakeStdoutEvent{{Data: tt.newOutput}}})
+					return newFakeCmd(fakeCmdConfig{
+						StdoutPlan: []fakeStdoutEvent{{Data: tt.newOutput}},
+					})
 				}
 				if calls == 2 {
 					if err := tt.checkResArgs(args, tt.sessionID); err != nil {
 						t.Fatalf("resume args check failed: %v", err)
 					}
-					return newFakeCmd(fakeCmdConfig{StdoutPlan: []fakeStdoutEvent{{Data: tt.resumeOutput}}})
+					return newFakeCmd(fakeCmdConfig{
+						StdoutPlan: []fakeStdoutEvent{{Data: tt.resumeOutput}},
+					})
 				}
 				t.Fatalf("unexpected extra call %d (args=%v)", calls, args)
 				return newFakeCmd(fakeCmdConfig{})

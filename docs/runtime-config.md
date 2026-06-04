@@ -24,7 +24,6 @@
 
 - `codex`：`--dangerously-bypass-approvals-and-sandbox`
 - `claude`：`--dangerously-skip-permissions`
-- `gemini`：`-y`
 
 ## 3）`.env` 中的运行时字段
 
@@ -47,10 +46,6 @@
 
 ### 后端模型覆盖
 
-- `CODE_DISPATCHER_GEMINI_MODEL`
-  - 可选；若设置，则向 gemini CLI 透传 `-m <value>`
-  - 示例：`gemini-2.5-pro`
-
 - `CODE_DISPATCHER_CODEX_MODEL`
   - 可选；若设置，则向 codex CLI 透传 `-m <value>`
   - 示例：`gpt-5.4`
@@ -65,7 +60,7 @@
 ~/.code-dispatcher/prompts/<backend>-prompt.md
 ```
 
-支持的后端：`codex`、`claude`、`gemini`。
+支持的后端：`codex`、`claude`。
 
 安装器不会覆盖已存在的提示词文件，除非使用 `python3 install.py --force`。升级默认 prompt contract 后，已有安装需要手动同步这些文件或使用 `--force` 重新安装。
 

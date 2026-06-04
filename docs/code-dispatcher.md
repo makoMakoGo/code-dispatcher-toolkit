@@ -1,6 +1,6 @@
 # Code Dispatcher - 设计决策记录
 
-Code Dispatcher 是一个多后端任务分发器，统一调度 `codex`、`claude`、`gemini` 三个 AI 编码工具的官方 CLI。
+Code Dispatcher 是一个多后端任务分发器，统一调度 `codex`、`claude` 两个 backend。
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -10,18 +10,17 @@ Code Dispatcher 是一个多后端任务分发器，统一调度 `codex`、`clau
 │   用户请求 ──→ ┌─────────────┐ ──→ ┌─────────┐ ──→ 结果返回     │
 │                │  Backend    │     │ Codex   │                  │
 │                │  Router     │     │ Claude  │                  │
-│                │             │     │ Gemini  │                  │
 │                └─────────────┘     └─────────┘                  │
 │                       │                                         │
-│           ┌───────────┼───────────┐                             │
-│           ▼           ▼           ▼                             │
-│   ┌──────────┐  ┌──────────┐  ┌──────────┐                      │
-│   │ Task A   │  │ Task B   │  │ Task C   │   ← --parallel       │
-│   │ backend  │  │ backend  │  │ backend  │      DAG 调度         │
-│   │ :codex   │  │ :claude  │  │ :gemini  │                      │
-│   └──────────┘  └──────────┘  └──────────┘                      │
-│        │             │             │                            │
-│        └─────────────┴─────────────┘                            │
+│           ┌───────────┴───────────┐                             │
+│           ▼                       ▼                             │
+│   ┌──────────┐            ┌──────────┐                          │
+│   │ Task A   │            │ Task B   │   ← --parallel           │
+│   │ backend  │            │ backend  │      DAG 调度             │
+│   │ :codex   │            │ :claude  │                          │
+│   └──────────┘            └──────────┘                          │
+│        │                       │                                │
+│        └───────────┬───────────┘                                │
 │                      │                                          │
 │                      ▼                                          │
 │              ┌─────────────┐                                    │
@@ -42,15 +41,14 @@ Code Dispatcher 是一个多后端任务分发器，统一调度 `codex`、`clau
 
 编译后单一二进制，分发到 WSL2/Linux/macOS 不需要运行时环境。跨平台进程组管理靠原生 syscall（`syscall.Kill(-pid, SIGTERM)`），Python/Node 做不到这种级别的进程控制。
 
-### 为什么只留 codex/claude/gemini？[DC-2]
+### 为什么只留 codex/claude？[DC-2]
 
-尝试过 ampcode、copilot，都删了。关键区别：codex/claude/gemini 是三家模型厂商（OpenAI/Anthropic/Google）的**官方 CLI**，ampcode/copilot 只是第三方工具包装。选官方 CLI = 不经过中间层，直接拿到厂商最新能力。三个刚好对应三家公司，不多不少。
+尝试过 ampcode、copilot，都删了。关键区别：codex/claude 是直接面向主要模型厂商 CLI 的 backend slot，ampcode/copilot 只是第三方工具包装。保留两个稳定后端，减少集成面和运行时差异。
 
 | 后端 | 厂商 | 定位 | 最佳场景 |
 |------|------|------|---------|
 | **codex** | OpenAI | 复杂开发（默认） | 复杂逻辑、bug 修复、优化重构、大规模代码生成 |
-| **claude** | Anthropic | 快速响应 | 快速修复、代码 review、补充分析、文档编写 |
-| **gemini** | Google | UI 原型 | 前端 UI/UX 原型、样式和交互细化、视觉调整 |
+| **claude** | Anthropic | 快速响应 | 快速修复、代码 review、补充分析、UI/UX 实现、文档编写、文案 polish |
 
 ### Backend 接口抽象 [DC-3]
 
@@ -65,7 +63,7 @@ AI 任务描述动辄含代码片段、文件路径、特殊字符，inline 参�
 
 `<<'EOF'`（单引号 HEREDOC）走 stdin 路径，完全绕过 `execve()` 参数限制，零展开零转义。内容原样送达。
 
-Go 侧对应做法是 `cmd.Stdin = strings.NewReader(content)`，不走参数拼接。
+Go 侧默认做法是 `cmd.Stdin = strings.NewReader(content)`，不走参数拼接。
 
 ### --parallel 用 stdin 而不是配置文件 [DC-5]
 
@@ -112,7 +110,7 @@ git 历史有 `a6ec7c9 "fix: gracefully terminate backend process trees on cance
 
 AI 后端需要保存 session/刷新日志，强杀丢数据。信号先发到进程组（`-pid`），确保子进程也收到；dispatcher 先发送 SIGTERM，等待配置延迟后仍未退出才升级 SIGKILL。
 
-唯一允许终止的三种情况写死在文档里，防止 agent 乱杀。禁止基于名称的全局清理（`pkill -x codex/claude/gemini`），只清理目标 dispatcher 进程的子进程。
+唯一允许终止的三种情况写死在文档里，防止 agent 乱杀。禁止基于名称的全局清理（`pkill -x codex/claude`），只清理目标 dispatcher 进程的子进程。
 
 ### --full-output 只在 parallel 模式 [DC-10]
 
@@ -157,11 +155,11 @@ Summary: <one sentence>
 
 ### Session/Resume 是为了复用上下文 [DC-13]
 
-SESSION_ID 的核心目的是**复用对话上下文**，不是处理超时/中断（那是副作用）。长任务分多轮人机交互，resume 让后续指令在同一个对话里继续，不丢上下文。三个后端都支持，parallel 模式里也能混合 resume。
+SESSION_ID 的核心目的是**复用对话上下文**，不是处理超时/中断（那是副作用）。长任务分多轮人机交互，resume 让后续指令在同一个对话里继续，不丢上下文。支持的后端都支持 resume，parallel 模式里也能混合 resume。
 
 ### 后端审批全跳过 [DC-14]
 
-dispatcher 定位是自动化执行器，不是交互式工具。codex/claude/gemini 的 approval 提示会阻塞非交互进程，所以硬编码 bypass flags（`--dangerously-bypass-approvals-and-sandbox` / `--dangerously-skip-permissions` / `-y`），不给开关。
+dispatcher 定位是自动化执行器，不是交互式工具。codex/claude 的 approval 提示会阻塞非交互进程，所以硬编码 bypass flags（Codex `--dangerously-bypass-approvals-and-sandbox`，Claude `--dangerously-skip-permissions`），不给开关。
 
 ### --cleanup 孤立日志清理 [DC-15]
 
@@ -190,7 +188,7 @@ code-dispatcher --backend codex "simple task" [working_dir]
 ```
 
 参数说明：
-- `--backend <codex|claude|gemini>`：选择后端（必需）
+- `--backend <codex|claude>`：选择后端（必需）
 - `<task>`：任务描述，支持 inline 文本或 `-`（从 stdin 读取）。支持 `@file` 引用（后端原生功能，dispatcher 不处理）
 - `[working_dir]`：工作目录（可选，默认 `.`）
 
@@ -258,7 +256,7 @@ design architecture based on task1 analysis
 
 ---TASK---
 id: task3
-backend: gemini
+backend: codex
 dependencies: task2
 ---CONTENT---
 generate implementation code
@@ -328,9 +326,7 @@ Log: /tmp/code-dispatcher-123-task-a.log
 
 **Codex**（OpenAI）：深度代码理解、大规模重构、算法优化
 
-**Claude**（Anthropic）：快速功能实现、技术文档、prompt 编写
-
-**Gemini**（Google）：UI 组件脚手架、设计系统、交互元素
+**Claude**（Anthropic）：快速功能实现、UI/UX 实现、技术文档、prompt 编写、文案 polish
 
 ### 紧急停止
 

@@ -31,16 +31,6 @@ type ClaudeEvent struct {
 	Result    string `json:"result,omitempty"`
 }
 
-// GeminiEvent for Gemini stream-json format
-type GeminiEvent struct {
-	Type      string `json:"type"`
-	SessionID string `json:"session_id,omitempty"`
-	Role      string `json:"role,omitempty"`
-	Content   string `json:"content,omitempty"`
-	Delta     bool   `json:"delta,omitempty"`
-	Status    string `json:"status,omitempty"`
-}
-
 func parseJSONStream(r io.Reader) (message, threadID string) {
 	return parseJSONStreamWithLog(r, logWarn, logInfo)
 }
@@ -73,12 +63,6 @@ type UnifiedEvent struct {
 	Subtype   string `json:"subtype,omitempty"`
 	SessionID string `json:"session_id,omitempty"`
 	Result    string `json:"result,omitempty"`
-
-	// Gemini-specific fields
-	Role    string `json:"role,omitempty"`
-	Content string `json:"content,omitempty"`
-	Delta   *bool  `json:"delta,omitempty"`
-	Status  string `json:"status,omitempty"`
 }
 
 // ItemContent represents the parsed item.text field for Codex events
@@ -120,11 +104,8 @@ func parseJSONStreamInternalWithHooks(r io.Reader, warnFn func(string), infoFn f
 	totalEvents := 0
 
 	var (
-		codexMessage   string
-		claudeMessage  string
-		geminiBuffer   strings.Builder
-		geminiResult   string
-		geminiSawDelta bool
+		codexMessage  string
+		claudeMessage string
 	)
 
 	for {
@@ -171,10 +152,9 @@ func parseJSONStreamInternalWithHooks(r io.Reader, warnFn func(string), infoFn f
 			isCodex = true
 		}
 		isClaude := event.Subtype != "" || event.Result != ""
-		if !isClaude && event.Type == "result" && event.SessionID != "" && event.Status == "" {
+		if !isClaude && event.Type == "result" && event.SessionID != "" {
 			isClaude = true
 		}
-		isGemini := (event.Type == "init" && event.SessionID != "") || event.Role != "" || event.Delta != nil || event.Status != ""
 
 		// Handle Codex events
 		if isCodex {
@@ -255,61 +235,11 @@ func parseJSONStreamInternalWithHooks(r io.Reader, warnFn func(string), infoFn f
 			continue
 		}
 
-		// Handle Gemini events
-		if isGemini {
-			if event.SessionID != "" && threadID == "" {
-				threadID = event.SessionID
-			}
-
-			captureContent := event.Type == "message" || event.Type == "result"
-			if event.Role == "user" {
-				captureContent = false
-			}
-
-			if captureContent && event.Content != "" {
-				if event.Type == "result" {
-					geminiResult = event.Content
-				} else {
-					isDeltaChunk := event.Delta != nil && *event.Delta
-					if isDeltaChunk {
-						geminiSawDelta = true
-						geminiBuffer.WriteString(event.Content)
-					} else {
-						if geminiSawDelta {
-							geminiBuffer.Reset()
-							geminiSawDelta = false
-						}
-						geminiBuffer.WriteString(event.Content)
-					}
-				}
-			}
-
-			if event.Status != "" {
-				notifyMessage()
-
-				if event.Type == "result" && (event.Status == "success" || event.Status == "error" || event.Status == "complete" || event.Status == "failed") {
-					notifyComplete()
-				}
-			}
-
-			delta := false
-			if event.Delta != nil {
-				delta = *event.Delta
-			}
-
-			infoFn(fmt.Sprintf("Parsed Gemini event #%d type=%s role=%s delta=%t status=%s content_len=%d", totalEvents, event.Type, event.Role, delta, event.Status, len(event.Content)))
-			continue
-		}
-
 		// Unknown event format from other backends; ignore.
 		continue
 	}
 
 	switch {
-	case geminiResult != "":
-		message = geminiResult
-	case geminiBuffer.Len() > 0:
-		message = geminiBuffer.String()
 	case claudeMessage != "":
 		message = claudeMessage
 	case codexMessage != "":

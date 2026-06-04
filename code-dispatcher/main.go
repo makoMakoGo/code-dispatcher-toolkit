@@ -19,7 +19,7 @@ const (
 	defaultCoverageTarget = 90.0
 	logLineLimit          = 1000
 	stdinSpecialChars     = "\n\\\"'`$"
-	stderrCaptureLimit    = 4 * 1024
+	stderrCaptureLimit    = 64 * 1024
 	defaultBackendName    = "codex"
 	defaultBackendCommand = "codex"
 
@@ -221,12 +221,11 @@ func run() (exitCode int) {
 				fmt.Fprintln(os.Stderr, "Usage examples:")
 				fmt.Fprintf(os.Stderr, "  %s --parallel --backend codex < tasks.txt\n", name)
 				fmt.Fprintf(os.Stderr, "  echo '...' | %s --parallel --backend claude\n", name)
-				fmt.Fprintf(os.Stderr, "  %s --parallel --backend gemini <<'EOF'\n", name)
 				return 1
 			}
 
 			if !backendSpecified {
-				fmt.Fprintln(os.Stderr, "ERROR: --backend is required in --parallel mode (supported: codex, claude, gemini)")
+				fmt.Fprintln(os.Stderr, "ERROR: --backend is required in --parallel mode (supported: codex, claude)")
 				fmt.Fprintln(os.Stderr, "Usage examples:")
 				fmt.Fprintf(os.Stderr, "  %s --parallel --backend codex < tasks.txt\n", name)
 				fmt.Fprintf(os.Stderr, "  %s --parallel --backend claude <<'EOF'\n", name)
@@ -584,7 +583,7 @@ Usage:
 	%[1]s --help
 
 Supported backends:
-	codex | claude | gemini
+	codex | claude
 
 Common mistakes:
 	--resume is invalid; use: resume <session_id> <task>
@@ -594,11 +593,10 @@ Common mistakes:
 Parallel mode examples:
 	%[1]s --parallel --backend codex < tasks.txt
 	echo '...' | %[1]s --parallel --backend claude
-	%[1]s --parallel --backend gemini < tasks.txt
 
 		Prompt Injection (default-on):
 			Prompt file path: ~/.code-dispatcher/prompts/<backend>-prompt.md
-		    Backends: codex | claude | gemini
+		    Backends: codex | claude
 		    Empty/missing prompt files behave like no injection.
 
 	Runtime Config:
