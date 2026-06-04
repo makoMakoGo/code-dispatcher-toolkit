@@ -6,18 +6,6 @@ import (
 	"strings"
 )
 
-// geminiNoisePatterns contains stderr patterns to filter for gemini backend
-var geminiNoisePatterns = []string{
-	"[STARTUP]",
-	"Session cleanup disabled",
-	"Warning:",
-	"(node:",
-	"(Use `node --trace-warnings",
-	"Loaded cached credentials",
-	"Loading extension:",
-	"YOLO mode is enabled",
-}
-
 // codexNoisePatterns contains stderr patterns to filter for codex backend
 var codexNoisePatterns = []string{
 	"ERROR codex_core::codex: needs_follow_up:",

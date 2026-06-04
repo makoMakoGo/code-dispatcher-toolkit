@@ -55,53 +55,6 @@ func TestVariousBackendsBuildArgs(t *testing.T) {
 	setRuntimeSettingsForTest(map[string]string{})
 	t.Cleanup(resetRuntimeSettingsForTest)
 
-	t.Run("gemini new mode defaults workdir", func(t *testing.T) {
-		backend := GeminiBackend{}
-		cfg := &Config{Mode: "new", WorkDir: "/workspace"}
-		got := backend.BuildArgs(cfg, "task")
-		want := []string{"-o", "stream-json", "-y", "task"}
-		if !reflect.DeepEqual(got, want) {
-			t.Fatalf("got %v, want %v", got, want)
-		}
-	})
-
-	t.Run("gemini resume mode uses session id", func(t *testing.T) {
-		backend := GeminiBackend{}
-		cfg := &Config{Mode: "resume", SessionID: "sid-999"}
-		got := backend.BuildArgs(cfg, "resume")
-		want := []string{"-o", "stream-json", "-y", "-r", "sid-999", "resume"}
-		if !reflect.DeepEqual(got, want) {
-			t.Fatalf("got %v, want %v", got, want)
-		}
-	})
-
-	t.Run("gemini resume mode without session omits identifier", func(t *testing.T) {
-		backend := GeminiBackend{}
-		cfg := &Config{Mode: "resume"}
-		got := backend.BuildArgs(cfg, "resume")
-		want := []string{"-o", "stream-json", "-y", "resume"}
-		if !reflect.DeepEqual(got, want) {
-			t.Fatalf("got %v, want %v", got, want)
-		}
-	})
-
-	t.Run("gemini nil config returns nil", func(t *testing.T) {
-		backend := GeminiBackend{}
-		if backend.BuildArgs(nil, "ignored") != nil {
-			t.Fatalf("nil config should return nil args")
-		}
-	})
-
-	t.Run("gemini stdin mode uses -p flag", func(t *testing.T) {
-		backend := GeminiBackend{}
-		cfg := &Config{Mode: "new"}
-		got := backend.BuildArgs(cfg, "-")
-		want := []string{"-o", "stream-json", "-y", "-p", "-"}
-		if !reflect.DeepEqual(got, want) {
-			t.Fatalf("got %v, want %v", got, want)
-		}
-	})
-
 	t.Run("codex build args always includes bypass flag", func(t *testing.T) {
 		backend := CodexBackend{}
 		cfg := &Config{Mode: "new", WorkDir: "/tmp"}
@@ -122,7 +75,6 @@ func TestClaudeBuildArgs_BackendMetadata(t *testing.T) {
 	}{
 		{backend: CodexBackend{}, name: "codex", command: "codex"},
 		{backend: ClaudeBackend{}, name: "claude", command: "claude"},
-		{backend: GeminiBackend{}, name: "gemini", command: "gemini"},
 	}
 
 	for _, tt := range tests {
@@ -165,18 +117,6 @@ func TestRuntimeEnvForBackend(t *testing.T) {
 		}
 	})
 
-	t.Run("gemini adds bearer auth fallback", func(t *testing.T) {
-		setRuntimeSettingsForTest(map[string]string{
-			"GEMINI_API_KEY": "k1",
-		})
-		t.Cleanup(resetRuntimeSettingsForTest)
-
-		got := runtimeEnvForBackend("gemini")
-		if got["GEMINI_API_KEY_AUTH_MECHANISM"] != "bearer" {
-			t.Fatalf("got %v, want GEMINI_API_KEY_AUTH_MECHANISM=bearer", got)
-		}
-	})
-
 	t.Run("claude unsets nested session markers", func(t *testing.T) {
 		got := runtimeUnsetEnvKeysForBackend("claude")
 		want := []string{"CLAUDECODE"}
@@ -196,16 +136,8 @@ func TestResolveBackendModel(t *testing.T) {
 	t.Run("returns empty when not set", func(t *testing.T) {
 		setRuntimeSettingsForTest(map[string]string{})
 		t.Cleanup(resetRuntimeSettingsForTest)
-		if got := resolveBackendModel("gemini"); got != "" {
+		if got := resolveBackendModel("claude"); got != "" {
 			t.Fatalf("got %q, want empty", got)
-		}
-	})
-
-	t.Run("gemini model from env", func(t *testing.T) {
-		setRuntimeSettingsForTest(map[string]string{"CODE_DISPATCHER_GEMINI_MODEL": "gemini-2.5-pro"})
-		t.Cleanup(resetRuntimeSettingsForTest)
-		if got := resolveBackendModel("gemini"); got != "gemini-2.5-pro" {
-			t.Fatalf("got %q, want gemini-2.5-pro", got)
 		}
 	})
 
@@ -217,34 +149,21 @@ func TestResolveBackendModel(t *testing.T) {
 		}
 	})
 
-	t.Run("whitespace trimmed", func(t *testing.T) {
-		setRuntimeSettingsForTest(map[string]string{"CODE_DISPATCHER_GEMINI_MODEL": "  gemini-2.5-flash  "})
+	t.Run("codex model whitespace trimmed", func(t *testing.T) {
+		setRuntimeSettingsForTest(map[string]string{"CODE_DISPATCHER_CODEX_MODEL": "  o4-mini  "})
 		t.Cleanup(resetRuntimeSettingsForTest)
-		if got := resolveBackendModel("gemini"); got != "gemini-2.5-flash" {
-			t.Fatalf("got %q, want gemini-2.5-flash", got)
+		if got := resolveBackendModel("codex"); got != "o4-mini" {
+			t.Fatalf("got %q, want o4-mini", got)
 		}
 	})
 
 	t.Run("whitespace-only treated as empty", func(t *testing.T) {
-		setRuntimeSettingsForTest(map[string]string{"CODE_DISPATCHER_GEMINI_MODEL": "   "})
+		setRuntimeSettingsForTest(map[string]string{"CODE_DISPATCHER_CODEX_MODEL": "   "})
 		t.Cleanup(resetRuntimeSettingsForTest)
-		if got := resolveBackendModel("gemini"); got != "" {
+		if got := resolveBackendModel("codex"); got != "" {
 			t.Fatalf("got %q, want empty for whitespace-only value", got)
 		}
 	})
-}
-
-func TestGeminiBuildArgs_WithModel(t *testing.T) {
-	setRuntimeSettingsForTest(map[string]string{"CODE_DISPATCHER_GEMINI_MODEL": "gemini-2.5-pro"})
-	t.Cleanup(resetRuntimeSettingsForTest)
-
-	backend := GeminiBackend{}
-	cfg := &Config{Mode: "new", WorkDir: "/workspace"}
-	got := backend.BuildArgs(cfg, "task")
-	want := []string{"-o", "stream-json", "-y", "-m", "gemini-2.5-pro", "task"}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("got %v, want %v", got, want)
-	}
 }
 
 func TestCodexBuildArgs_WithModel(t *testing.T) {

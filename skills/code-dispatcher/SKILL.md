@@ -1,17 +1,17 @@
 ---
 name: code-dispatcher
-description: Execute code-dispatcher for multi-backend AI code tasks. Use when the user explicitly requests a specific backend (Codex, Claude, or Gemini), mentions code-dispatcher, or when a skill or command definition declares a dependency on this skill. Supports pluggable backends (codex/claude/gemini), parallel task execution with DAG scheduling, session resume, and compact parallel summaries.
+description: Execute code-dispatcher for multi-backend AI code tasks. Use when the user explicitly requests a specific backend (Codex or Claude), mentions code-dispatcher, or when a skill or command definition declares a dependency on this skill. Supports pluggable backends (codex/claude), parallel task execution with DAG scheduling, session resume, and compact parallel summaries.
 ---
 
 # code-dispatcher Integration
 
 ## Overview
 
-Execute code-dispatcher commands with pluggable AI backends (Codex, Claude, Gemini). Use it for backend-selected execution, file references via backend-native `@` syntax, parallel task execution, DAG dependencies, and session resume.
+Execute code-dispatcher commands with pluggable AI backends (Codex, Claude). Use it for backend-selected execution, file references via backend-native `@` syntax, parallel task execution, DAG dependencies, and session resume.
 
 ## When to Use
 
-When the user explicitly requests a specific backend (Codex, Claude, or Gemini), mentions code-dispatcher, or when a skill or command definition explicitly declares a dependency on this skill.
+When the user explicitly requests a specific backend (Codex or Claude), mentions code-dispatcher, or when a skill or command definition explicitly declares a dependency on this skill.
 
 Applicable scenarios include but are not limited to:
 - Complex code analysis requiring deep understanding
@@ -32,7 +32,6 @@ EOF
 ```bash
 code-dispatcher --backend codex "simple task" [working_dir]
 code-dispatcher --backend claude "simple task" [working_dir]
-code-dispatcher --backend gemini "simple task" [working_dir]
 ```
 
 ## Common Parameters
@@ -45,7 +44,7 @@ code-dispatcher --backend gemini "simple task" [working_dir]
   - Resume uses its own forms: inline `code-dispatcher --backend <backend> resume <session_id> "<follow-up task>"` and stdin `code-dispatcher --backend <backend> resume <session_id> -`.
 
 - `--backend <backend>` (required)
-  - Select backend explicitly: `codex | claude | gemini`.
+  - Select backend explicitly: `codex | claude`.
   - Must be present in both new and resume modes.
   - In parallel mode, this is the global default backend.
   - If a task block defines `backend`, it overrides the global default for that task.
@@ -66,7 +65,7 @@ code-dispatcher --backend gemini "simple task" [working_dir]
   - Summary mode may omit fields that were not reported by the backend. Do not infer missing work from missing fields alone; inspect `Log:` or use `--full-output` when details matter.
   - **Full (`--full-output`)**: Complete per-task backend messages. Use when debugging failures, inspecting omitted details, or when raw task output is required.
   - Scope: `--full-output` is valid only with `--parallel`; single-task mode does not support this flag.
-  - Backend behavior: mode selection is dispatcher-level and works the same for `codex | claude | gemini`.
+  - Backend behavior: mode selection is dispatcher-level and works the same for `codex | claude`.
 
 ## Utility Commands
 
@@ -134,8 +133,7 @@ Quick look at the differences between backends:
 | Backend | Command | Description | Best For |
 |---------|---------|-------------|----------|
 | codex | `--backend codex` | OpenAI Codex (default) | Code analysis, complex development, debugging |
-| claude | `--backend claude` | Anthropic Claude | Quick fixes, documentation, prompts |
-| gemini | `--backend gemini` | Google Gemini | UI/UX prototyping |
+| claude | `--backend claude` | Anthropic Claude | Quick fixes, documentation, prompts, review, UI/UX and copy polish |
 
 For detailed guidance:
 
@@ -149,21 +147,17 @@ For detailed guidance:
 - Quick feature implementation with clear requirements
 - Technical documentation, API specs, README generation
 - Professional prompt engineering (e.g., product requirements, design specs)
+- UI/UX implementation: component scaffolding, layout, styling, accessibility, and interaction behavior
+- Design-system wiring, UI copy, labels, empty states, review notes, and polish tasks
 - Example: "Generate a comprehensive README for @package.json with installation, usage, and API docs"
 
-**Gemini**:
-- UI component scaffolding and layout prototyping
-- Design system implementation with style consistency
-- Interactive element generation with accessibility support
-- Example: "Create a responsive dashboard layout with sidebar navigation and data visualization cards"
-
 A Typical Backend Switching Example:
-- Start with Codex for analysis, switch to Claude for documentation, then Gemini for UI implementation.
+- Start with Codex for analysis and complex implementation; switch to Claude for UI-heavy work, documentation, review notes, and copy polish.
 - Use per-task backend selection in parallel mode to optimize for each task's strengths
 
 ## Resume Session
 
-Supported backends all support resume mode: `codex | claude | gemini`.
+Supported backends all support resume mode: `codex | claude`.
 
 **1) Standard resume (HEREDOC)**
 ```bash
@@ -255,10 +249,10 @@ backend: claude
 write technical notes based on the analysis
 
 ---TASK---
-id: ui-draft
-backend: gemini
+id: follow-up
+backend: claude
 ---CONTENT---
-draft UI layout from the same requirements
+write implementation notes from the same requirements
 EOF
 ```
 
@@ -320,7 +314,7 @@ design architecture based on task1 analysis
 
 ---TASK---
 id: task3
-backend: gemini
+backend: codex
 dependencies: task2
 ---CONTENT---
 generate implementation code
@@ -373,7 +367,7 @@ Host-agnostic tool-call template (field names vary by runtime):
 Field names depend on the host tool schema.
 Timeout policy: always set explicit timeout by task complexity; do not rely on implicit defaults.
 
-Note: `--backend` is required; supported values: `codex | claude | gemini`
+Note: `--backend` is required; supported values: `codex | claude`
 ```
 
 **Parallel Tasks**:
@@ -445,7 +439,7 @@ Note: Global --backend is required; per-task backend is optional
 - Hard rule: kill/terminate is allowed **only when the user explicitly requests it**.
 - Do not kill processes automatically because of long runtime or wait timeout.
 - Use staged termination and stop escalation as soon as processes exit.
-- Name-based global cleanup (`pkill -x codex/claude/gemini`) is prohibited.
+- Name-based global cleanup (`pkill -x codex/claude`) is prohibited.
 
 1. **Graceful stop dispatcher first**:
    ```bash
@@ -479,5 +473,5 @@ Note: Global --backend is required; per-task backend is optional
 4. **Post-check**:
    ```bash
    pgrep -fa code-dispatcher
-   pgrep -fa 'codex|claude|gemini'
+   pgrep -fa 'codex|claude'
    ```

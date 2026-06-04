@@ -945,7 +945,7 @@ func runTaskWithContext(parentCtx context.Context, taskSpec TaskSpec, backend Ba
 
 	if !silent {
 		// Note: Empty prefix ensures backend output is logged as-is without any dispatcher format.
-		// This preserves the original stdout/stderr content from codex/claude/gemini backends.
+		// This preserves the original stdout/stderr content from codex/claude backends.
 		// Trade-off: Reduces distinguishability between stdout/stderr in logs, but maintains
 		// output fidelity which is critical for debugging backend-specific issues.
 		stdoutLogger = newLogWriter("", logLineLimit)
@@ -975,9 +975,9 @@ func runTaskWithContext(parentCtx context.Context, taskSpec TaskSpec, backend Ba
 		cmd.UnsetEnv(backendEnvUnsetKeys)
 	}
 
-	// For backends that don't support -C flag (claude, gemini), set working directory via cmd.Dir
+	// For backends that don't support -C flag (claude), set working directory via cmd.Dir.
 	// Codex passes workdir via -C flag, so we skip setting Dir for it to avoid conflicts
-	if cfg.Mode != "resume" && commandName != "codex" && cfg.WorkDir != "" {
+	if commandName != "codex" && cfg.WorkDir != "" && cfg.Mode != "resume" {
 		cmd.SetDir(cfg.WorkDir)
 	}
 
@@ -986,14 +986,10 @@ func runTaskWithContext(parentCtx context.Context, taskSpec TaskSpec, backend Ba
 		stderrWriters = append(stderrWriters, stderrLogger)
 	}
 
-	// For gemini backend, filter noisy stderr output
 	var stderrFilter *filteringWriter
 	if !silent {
 		stderrOut := io.Writer(os.Stderr)
-		if cfg.Backend == "gemini" {
-			stderrFilter = newFilteringWriter(os.Stderr, geminiNoisePatterns)
-			stderrOut = stderrFilter
-		} else if cfg.Backend == "codex" {
+		if cfg.Backend == "codex" {
 			stderrFilter = newFilteringWriter(os.Stderr, codexNoisePatterns)
 			stderrOut = stderrFilter
 		}
@@ -1225,13 +1221,20 @@ waitLoop:
 		}
 	}
 
-	closeWithReason(stderr, stdoutCloseReasonWait)
 	// Wait for stderr drain so stderrBuf / stderrLogger are not accessed concurrently.
 	// Important: cmd.Wait can block on internal stderr copying if cmd.Stderr is a non-file writer.
 	// We use StderrPipe and drain ourselves to avoid that deadlock class (common when children inherit pipes).
-	<-stderrDone
+	select {
+	case <-stderrDone:
+	case <-time.After(stdoutDrainTimeout):
+		closeWithReason(stderr, stdoutCloseReasonWait)
+		<-stderrDone
+	}
 
 	if ctxErr := ctx.Err(); ctxErr != nil {
+		if parsed.threadID != "" {
+			result.SessionID = parsed.threadID
+		}
 		if errors.Is(ctxErr, context.DeadlineExceeded) {
 			result.ExitCode = 124
 			result.Error = attachStderr(fmt.Sprintf("%s execution timeout", commandName))
@@ -1279,9 +1282,13 @@ waitLoop:
 	message := parsed.message
 	threadID := parsed.threadID
 	if message == "" {
-		logErrorFn(fmt.Sprintf("%s completed without agent_message output", commandName))
+		emptyMessageError := fmt.Sprintf("%s completed without agent_message output", commandName)
+		logErrorFn(emptyMessageError)
 		result.ExitCode = 1
-		result.Error = attachStderr(fmt.Sprintf("%s completed without agent_message output", commandName))
+		if threadID != "" {
+			result.SessionID = threadID
+		}
+		result.Error = attachStderr(emptyMessageError)
 		return result
 	}
 

@@ -2,7 +2,7 @@
 
 <h1>CODE-DISPATCHER TOOLKIT</h1>
 <p><strong>Multi-Backend AI Coding Toolkit</strong></p>
-<p>Dispatch tasks across Codex, Claude, and Gemini with<br>reusable Skills and workflow tooling.</p>
+<p>Dispatch tasks across Codex and Claude with<br>reusable Skills and workflow tooling.</p>
 
 <p>
   <strong>中文</strong> | <a href="README.en.md">English</a>
@@ -15,7 +15,6 @@
   <br>
   <img src="https://img.shields.io/badge/Backend-Codex-412991?logo=data:image/svg%2Bxml;base64,PHN2ZyBmaWxsPSJ3aGl0ZSIgcm9sZT0iaW1nIiB2aWV3Qm94PSIwIDAgMjQgMjQiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHRpdGxlPk9wZW5BSTwvdGl0bGU+PHBhdGggZD0iTTIyLjI4MTkgOS44MjExYTUuOTg0NyA1Ljk4NDcgMCAwIDAtLjUxNTctNC45MTA4IDYuMDQ2MiA2LjA0NjIgMCAwIDAtNi41MDk4LTIuOUE2LjA2NTEgNi4wNjUxIDAgMCAwIDQuOTgwNyA0LjE4MThhNS45ODQ3IDUuOTg0NyAwIDAgMC0zLjk5NzcgMi45IDYuMDQ2MiA2LjA0NjIgMCAwIDAgLjc0MjcgNy4wOTY2IDUuOTggNS45OCAwIDAgMCAuNTExIDQuOTEwNyA2LjA1MSA2LjA1MSAwIDAgMCA2LjUxNDYgMi45MDAxQTUuOTg0NyA1Ljk4NDcgMCAwIDAgMTMuMjU5OSAyNGE2LjA1NTcgNi4wNTU3IDAgMCAwIDUuNzcxOC00LjIwNTggNS45ODk0IDUuOTg5NCAwIDAgMCAzLjk5NzctMi45MDAxIDYuMDU1NyA2LjA1NTcgMCAwIDAtLjc0NzUtNy4wNzI5em0tOS4wMjIgMTIuNjA4MWE0LjQ3NTUgNC40NzU1IDAgMCAxLTIuODc2NC0xLjA0MDhsLjE0MTktLjA4MDQgNC43NzgzLTIuNzU4MmEuNzk0OC43OTQ4IDAgMCAwIC4zOTI3LS42ODEzdi02LjczNjlsMi4wMiAxLjE2ODZhLjA3MS4wNzEgMCAwIDEgLjAzOC4wNTJ2NS41ODI2YTQuNTA0IDQuNTA0IDAgMCAxLTQuNDk0NSA0LjQ5NDR6bS05LjY2MDctNC4xMjU0YTQuNDcwOCA0LjQ3MDggMCAwIDEtLjUzNDYtMy4wMTM3bC4xNDIuMDg1MiA0Ljc4MyAyLjc1ODJhLjc3MTIuNzcxMiAwIDAgMCAuNzgwNiAwbDUuODQyOC0zLjM2ODV2Mi4zMzI0YS4wODA0LjA4MDQgMCAwIDEtLjAzMzIuMDYxNUw5Ljc0IDE5Ljk1MDJhNC40OTkyIDQuNDk5MiAwIDAgMS02LjE0MDgtMS42NDY0ek0yLjM0MDggNy44OTU2YTQuNDg1IDQuNDg1IDAgMCAxIDIuMzY1NS0xLjk3MjhWMTEuNmEuNzY2NC43NjY0IDAgMCAwIC4zODc5LjY3NjVsNS44MTQ0IDMuMzU0My0yLjAyMDEgMS4xNjg1YS4wNzU3LjA3NTcgMCAwIDEtLjA3MSAwbC00LjgzMDMtMi43ODY1QTQuNTA0IDQuNTA0IDAgMCAxIDIuMzQwOCA3Ljg3MnptMTYuNTk2MyAzLjg1NThMMTMuMTAzOCA4LjM2NCAxNS4xMTkyIDcuMmEuMDc1Ny4wNzU3IDAgMCAxIC4wNzEgMGw0LjgzMDMgMi43OTEzYTQuNDk0NCA0LjQ5NDQgMCAwIDEtLjY3NjUgOC4xMDQydi01LjY3NzJhLjc5Ljc5IDAgMCAwLS40MDctLjY2N3ptMi4wMTA3LTMuMDIzMWwtLjE0Mi0uMDg1Mi00Ljc3MzUtMi43ODE4YS43NzU5Ljc3NTkgMCAwIDAtLjc4NTQgMEw5LjQwOSA5LjIyOTdWNi44OTc0YS4wNjYyLjA2NjIgMCAwIDEgLjAyODQtLjA2MTVsNC44MzAzLTIuNzg2NmE0LjQ5OTIgNC40OTkyIDAgMCAxIDYuNjgwMiA0LjY2ek04LjMwNjUgMTIuODYzbC0yLjAyLTEuMTYzOGEuMDgwNC4wODA0IDAgMCAxLS4wMzgtLjA1NjdWNi4wNzQyYTQuNDk5MiA0LjQ5OTIgMCAwIDEgNy4zNzU3LTMuNDUzN2wtLjE0Mi4wODA1TDguNzA0IDUuNDU5YS43OTQ4Ljc5NDggMCAwIDAtLjM5MjcuNjgxM3ptMS4wOTc2LTIuMzY1NGwyLjYwMi0xLjQ5OTggMi42MDY5IDEuNDk5OHYyLjk5OTRsLTIuNTk3NCAxLjQ5OTctMi42MDY3LTEuNDk5N1oiLz48L3N2Zz4=" alt="Codex">
   <img src="https://img.shields.io/badge/Backend-Claude-D4A27F?logo=anthropic&logoColor=white" alt="Claude">
-  <img src="https://img.shields.io/badge/Backend-Gemini-4285F4?logo=google&logoColor=white" alt="Gemini">
 </p>
 
 </div>
@@ -38,7 +37,7 @@
 
 ### Dispatcher CLI
 
-`code-dispatcher` 是一个多后端任务分发器，统一调度 `codex`、`claude`、`gemini` 三个 AI 编码工具。核心能力包括：
+`code-dispatcher` 是一个多后端任务分发器，统一调度 `codex`、`claude` 两个 AI 编码工具。核心能力包括：
 
 - 多后端支持：通过 `--backend` 自由切换或并行调用多个 AI 后端
 - 并行执行：基于 DAG 调度同时运行多个独立任务
@@ -48,8 +47,7 @@
 后端定位（仅推荐，可自由指定）：
 
 - `codex`：复杂逻辑、bug 修复、优化重构
-- `claude`：快速任务、review、补充分析
-- `gemini`：前端 UI/UX 原型、样式和交互细化
+- `claude`：快速任务、review、补充分析、UI/UX 实现、文档和文案 polish
 
 > [!NOTE]
 > 工具 `code-dispatcher` 核心思路基于 [`cexll/myclaude`](https://github.com/cexll/myclaude) 的 `codeagent wrapper`，经大量重构。
@@ -66,7 +64,7 @@
 </tr>
 <tr>
   <td><a href="docs/code-dispatcher.md"><code>code&#8209;dispatcher</code></a></td>
-  <td>执行器使用说明；统一 3 个后端 <code>codex/claude/gemini</code>；核心机制并行执行和会话恢复</td>
+  <td>执行器使用说明；统一后端 <code>codex/claude</code>；核心机制并行执行和会话恢复</td>
   <td>必需</td>
 </tr>
 <tr>
@@ -136,7 +134,6 @@ echo 'set -gx PATH "$HOME/.code-dispatcher/bin" $PATH' >> ~/.config/fish/config.
 - Claude Code : `~/.claude/skills`
 - Codex CLI : `~/.codex/skills`
 - OpenCode : `~/.config/opencode/skills`
-- Gemini CLI : `~/.gemini/skills`
 
 ### Step 3: 挑选 Skills
 
@@ -164,7 +161,7 @@ use dispatcher with codex to fix the bug we just discussed
 - 执行器超时相关参数
 - 执行器并行 worker 上限
 - 执行器日志输出设置
-- 被调用后端模型覆盖（仅 codex/gemini）
+- 被调用后端模型覆盖（仅 codex）
 
 完整字段含义请先看：[docs/runtime-config.md](docs/runtime-config.md)，未配置时按默认参数运行。
 

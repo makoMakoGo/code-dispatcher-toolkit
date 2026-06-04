@@ -9,7 +9,7 @@ disable-model-invocation: true
 ## Hard Rules
 
 1. ALL code changes go through code-dispatcher — never edit files directly
-2. ALL backend calls go through code-dispatcher — never invoke codex/claude/gemini directly
+2. ALL backend calls go through code-dispatcher — never invoke codex or claude directly
 3. Steps 0 and 1 require user input before continuing
 4. Step 3 requires explicit user confirmation before Step 4
 
@@ -19,8 +19,7 @@ Violation → stop and restart.
 
 Ask which backends are allowed for this run (multi-select):
 - `codex` — complex logic, refactoring, debugging (default)
-- `claude` — quick fixes, config, docs
-- `gemini` — UI/UX, styling, components
+- `claude` — quick fixes, config, docs, review, UI/UX implementation, copy/polish
 
 Store as `allowed_backends`. If only codex selected → all tasks forced to codex.
 Guidance: for non-trivial logic or multi-file refactors, recommend enabling at least codex.
@@ -32,7 +31,7 @@ Create task tracking list before proceeding.
 
 ## Step 2: Analysis via code-dispatcher
 
-Invoke code-dispatcher in a shell (backend: prefer codex from allowed_backends; fallback codex → claude → gemini).
+Invoke code-dispatcher in a shell (backend: prefer codex from allowed_backends; fallback codex → claude).
 Do NOT explore the codebase directly — delegate all exploration to code-dispatcher.
 
 ```bash
@@ -68,10 +67,10 @@ Output path: `.specs/{feature_name}/dev-plan.md`
 Build ONE `--parallel` config covering all tasks from dev-plan.md. Submit once via code-dispatcher in a shell.
 
 **Backend routing by task type**:
-- `default` → codex; fallback `codex → claude → gemini`
-- `ui` → gemini; fallback `gemini → codex → claude`
-- `quick-fix` → claude; fallback `claude → codex → gemini`
-- `docs` → claude; fallback `claude → codex → gemini`
+- `default` → codex; fallback `codex → claude`
+- `ui` → claude; fallback `claude → codex` (Claude owns component/layout/style/interaction work)
+- `quick-fix` → claude; fallback `claude → codex`
+- `docs` → claude; fallback `claude → codex`
 - Missing type → treat as `default`
 
 Choose the first backend in the task type's fallback chain that is present in `allowed_backends`.

@@ -12,7 +12,7 @@ from pathlib import Path
 
 
 DEFAULT_INSTALL_DIR = "~/.code-dispatcher"
-BACKENDS = ("codex", "claude", "gemini")
+BACKENDS = ("codex", "claude")
 LEGACY_PROMPT_FILES = ("copilot-prompt.md",)
 
 

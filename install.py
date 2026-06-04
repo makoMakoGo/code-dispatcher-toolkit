@@ -31,7 +31,7 @@ RELEASE_TAG = "latest"
 HTTP_TIMEOUT_SEC = 30
 ENV_TEMPLATE = Path(__file__).resolve().parent / "templates" / "runtime-config.env"
 
-BACKENDS = ("codex", "claude", "gemini")
+BACKENDS = ("codex", "claude")
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -262,7 +262,7 @@ def main(argv: list[str] | None = None) -> int:
     print("")
     print("Manual setup required:")
     print("- Copy selected skills/<skill-name>/ directories into each target CLI skills directory as needed.")
-    print("- This installer does not auto-copy skills into Claude Code/Codex CLI/OpenCode/Gemini CLI roots.")
+    print("- This installer does not auto-copy skills into Claude Code/Codex CLI/OpenCode roots.")
 
     if router_path is not None:
         _print_path_hint(install_dir / "bin")

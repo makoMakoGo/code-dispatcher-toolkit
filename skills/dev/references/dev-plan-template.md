@@ -48,7 +48,7 @@ Where `{feature_name}` is kebab-case derived from the feature description.
 - `docs`: documentation, README, API specs, technical notes
 - `default`: everything else
 
-Routing reference: `default`→codex, `ui`→gemini, `quick-fix`→claude, `docs`→claude; missing type → default.
+Routing reference: `default`→codex, `ui`→claude, `quick-fix`→claude, `docs`→claude; missing type → default. UI routing means component/layout/style/interaction work goes to claude.
 
 ## Generation Rules
 

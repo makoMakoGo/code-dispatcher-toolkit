@@ -377,6 +377,7 @@ type fakeStdoutEvent struct {
 
 type fakeCmdConfig struct {
 	StdoutPlan          []fakeStdoutEvent
+	StderrPlan          []fakeStdoutEvent
 	WaitDelay           time.Duration
 	WaitErr             error
 	StartErr            error
@@ -393,11 +394,13 @@ type fakeCmd struct {
 	stdout         *ctxAwareReader
 	stdoutWriter   *io.PipeWriter
 	stdoutPlan     []fakeStdoutEvent
+	stderrPlan     []fakeStdoutEvent
 	stdoutOnce     sync.Once
 	stdoutClaim    bool
 	keepStdoutOpen bool
 
 	stdoutWriteMu sync.Mutex
+	stderrWriteMu sync.Mutex
 
 	stdinWriter *bufferWriteCloser
 	stdinClaim  bool
@@ -436,6 +439,7 @@ func newFakeCmd(cfg fakeCmdConfig) *fakeCmd {
 		stdout:         newCtxAwareReader(r),
 		stdoutWriter:   w,
 		stdoutPlan:     append([]fakeStdoutEvent(nil), cfg.StdoutPlan...),
+		stderrPlan:     append([]fakeStdoutEvent(nil), cfg.StderrPlan...),
 		stdinWriter:    newBufferWriteCloser(),
 		waitDelay:      cfg.WaitDelay,
 		waitErr:        cfg.WaitErr,
@@ -448,6 +452,9 @@ func newFakeCmd(cfg fakeCmdConfig) *fakeCmd {
 	}
 	if len(cmd.stdoutPlan) == 0 {
 		cmd.stdoutPlan = nil
+	}
+	if len(cmd.stderrPlan) == 0 {
+		cmd.stderrPlan = nil
 	}
 	if cfg.BlockWait {
 		cmd.waitBlocked = true
@@ -491,6 +498,7 @@ func (f *fakeCmd) Start() error {
 	}
 
 	go f.runStdoutScript()
+	go f.runStderrScript()
 	return nil
 }
 
@@ -586,7 +594,6 @@ func (f *fakeCmd) runStdoutScript() {
 	if len(f.stdoutPlan) == 0 {
 		if !f.keepStdoutOpen {
 			f.CloseStdout(nil)
-			f.CloseStderr(nil)
 		}
 		return
 	}
@@ -598,8 +605,21 @@ func (f *fakeCmd) runStdoutScript() {
 	}
 	if !f.keepStdoutOpen {
 		f.CloseStdout(nil)
-		f.CloseStderr(nil)
 	}
+}
+
+func (f *fakeCmd) runStderrScript() {
+	if len(f.stderrPlan) == 0 {
+		f.CloseStderr(nil)
+		return
+	}
+	for _, ev := range f.stderrPlan {
+		if ev.Delay > 0 {
+			time.Sleep(ev.Delay)
+		}
+		f.WriteStderr(ev.Data)
+	}
+	f.CloseStderr(nil)
 }
 
 func (f *fakeCmd) releaseWait() {
@@ -619,6 +639,17 @@ func (f *fakeCmd) WriteStdout(data string) {
 	defer f.stdoutWriteMu.Unlock()
 	if f.stdoutWriter != nil {
 		_, _ = io.WriteString(f.stdoutWriter, data)
+	}
+}
+
+func (f *fakeCmd) WriteStderr(data string) {
+	if data == "" {
+		return
+	}
+	f.stderrWriteMu.Lock()
+	defer f.stderrWriteMu.Unlock()
+	if f.stderrWriter != nil {
+		_, _ = io.WriteString(f.stderrWriter, data)
 	}
 }
 
@@ -1227,9 +1258,9 @@ func TestBackendParseArgs_BackendFlag(t *testing.T) {
 			want: "claude",
 		},
 		{
-			name: "gemini resume",
-			args: []string{"code-dispatcher", "--backend", "gemini", "resume", "sid", "task"},
-			want: "gemini",
+			name: "codex resume",
+			args: []string{"code-dispatcher", "--backend", "codex", "resume", "sid", "task"},
+			want: "codex",
 		},
 		{
 			name: "backend equals syntax",
@@ -1387,7 +1418,7 @@ do something`
 func TestParallelParseConfig_Backend(t *testing.T) {
 	input := `---TASK---
 id: task-1
-backend: gemini
+backend: claude
 session_id: sess-123
 ---CONTENT---
 do something`
@@ -1400,8 +1431,8 @@ do something`
 		t.Fatalf("expected 1 task, got %d", len(cfg.Tasks))
 	}
 	task := cfg.Tasks[0]
-	if task.Backend != "gemini" {
-		t.Fatalf("backend = %q, want gemini", task.Backend)
+	if task.Backend != "claude" {
+		t.Fatalf("backend = %q, want claude", task.Backend)
 	}
 	if task.Mode != "resume" || task.SessionID != "sess-123" {
 		t.Fatalf("expected resume mode with session, got mode=%q session=%q", task.Mode, task.SessionID)
@@ -1599,7 +1630,6 @@ func TestRun_DefaultPromptInjectionPrefixesTask(t *testing.T) {
 	}{
 		{name: "codex injects", backend: "codex", prompt: "LINE1\nLINE2\n", wantPrefix: true},
 		{name: "claude injects", backend: "claude", prompt: "P\n", wantPrefix: true},
-		{name: "gemini empty is no-op", backend: "gemini", prompt: "   \n", wantPrefix: false},
 	}
 
 	for _, tt := range tests {
@@ -1738,7 +1768,6 @@ func TestBackendSelectBackend(t *testing.T) {
 	}{
 		{"codex", "codex", CodexBackend{}},
 		{"claude mixed case", "ClAuDe", ClaudeBackend{}},
-		{"gemini", "gemini", GeminiBackend{}},
 	}
 
 	for _, tt := range tests {
@@ -1755,10 +1784,6 @@ func TestBackendSelectBackend(t *testing.T) {
 			case ClaudeBackend:
 				if _, ok := got.(ClaudeBackend); !ok {
 					t.Fatalf("expected ClaudeBackend, got %T", got)
-				}
-			case GeminiBackend:
-				if _, ok := got.(GeminiBackend); !ok {
-					t.Fatalf("expected GeminiBackend, got %T", got)
 				}
 			}
 		})
@@ -1839,55 +1864,14 @@ func TestClaudeBackendBuildArgs_OutputValidation(t *testing.T) {
 	}
 }
 
-func TestBackendBuildArgs_GeminiBackend(t *testing.T) {
-	backend := GeminiBackend{}
-	cfg := &Config{Mode: "new"}
-	got := backend.BuildArgs(cfg, "task")
-	want := []string{"-o", "stream-json", "-y", "task"}
-	if len(got) != len(want) {
-		t.Fatalf("length mismatch")
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("index %d got %s want %s", i, got[i], want[i])
-		}
-	}
-
-	if backend.BuildArgs(nil, "ignored") != nil {
-		t.Fatalf("nil config should return nil args")
-	}
-}
-
-func TestGeminiBackendBuildArgs_OutputValidation(t *testing.T) {
-	backend := GeminiBackend{}
-	cfg := &Config{Mode: "resume"}
-	target := "prompt-data"
-
-	args := backend.BuildArgs(cfg, target)
-	expected := []string{"-o", "stream-json", "-y"}
-
-	if len(args) != len(expected)+1 {
-		t.Fatalf("args length=%d, want %d", len(args), len(expected)+1)
-	}
-	for i, val := range expected {
-		if args[i] != val {
-			t.Fatalf("args[%d]=%q, want %q", i, args[i], val)
-		}
-	}
-	if args[len(args)-1] != target {
-		t.Fatalf("last arg=%q, want target %q", args[len(args)-1], target)
-	}
-}
-
 func TestBackendNamesAndCommands(t *testing.T) {
-	tests := []Backend{CodexBackend{}, ClaudeBackend{}, GeminiBackend{}}
+	tests := []Backend{CodexBackend{}, ClaudeBackend{}}
 	expected := []struct {
 		name    string
 		command string
 	}{
 		{"codex", "codex"},
 		{"claude", "claude"},
-		{"gemini", "gemini"},
 	}
 
 	for i, backend := range tests {
@@ -2048,117 +2032,6 @@ func TestBackendParseJSONStream_ClaudeEvents_ItemDoesNotForceCodex(t *testing.T)
 	}
 }
 
-func TestBackendParseJSONStream_GeminiEvents(t *testing.T) {
-	input := `{"type":"init","session_id":"xyz789"}
-{"type":"message","role":"assistant","content":"Hi","delta":true,"session_id":"xyz789"}
-{"type":"message","role":"assistant","content":" there","delta":true}
-{"type":"result","status":"success","session_id":"xyz789"}`
-
-	message, threadID := parseJSONStream(strings.NewReader(input))
-
-	if message != "Hi there" {
-		t.Fatalf("message=%q, want %q", message, "Hi there")
-	}
-	if threadID != "xyz789" {
-		t.Fatalf("threadID=%q, want %q", threadID, "xyz789")
-	}
-}
-
-func TestBackendParseJSONStream_GeminiInitEventSessionID(t *testing.T) {
-	input := `{"type":"init","session_id":"gemini-abc123"}`
-
-	_, threadID := parseJSONStream(strings.NewReader(input))
-
-	if threadID != "gemini-abc123" {
-		t.Fatalf("threadID=%q, want %q", threadID, "gemini-abc123")
-	}
-}
-
-func TestBackendParseJSONStream_GeminiEvents_DeltaFalseStillDetected(t *testing.T) {
-	input := `{"type":"init","session_id":"xyz789"}
-{"type":"message","content":"Hi","delta":false,"session_id":"xyz789"}
-{"type":"result","status":"success","session_id":"xyz789"}`
-
-	message, threadID := parseJSONStream(strings.NewReader(input))
-
-	if message != "Hi" {
-		t.Fatalf("message=%q, want %q", message, "Hi")
-	}
-	if threadID != "xyz789" {
-		t.Fatalf("threadID=%q, want %q", threadID, "xyz789")
-	}
-}
-
-func TestBackendParseJSONStream_GeminiEvents_IgnoresUserContent(t *testing.T) {
-	input := `{"type":"init","session_id":"xyz789"}
-{"type":"message","role":"user","content":"Reply with exactly: OK","session_id":"xyz789"}
-{"type":"message","role":"assistant","content":"OK","delta":true}
-{"type":"result","status":"success","session_id":"xyz789"}`
-
-	message, threadID := parseJSONStream(strings.NewReader(input))
-
-	if message != "OK" {
-		t.Fatalf("message=%q, want %q", message, "OK")
-	}
-	if threadID != "xyz789" {
-		t.Fatalf("threadID=%q, want %q", threadID, "xyz789")
-	}
-}
-
-func TestBackendParseJSONStream_GeminiEvents_ResultContentPreferred(t *testing.T) {
-	input := `{"type":"init","session_id":"xyz789"}
-{"type":"message","role":"assistant","content":"DELTA","delta":true,"session_id":"xyz789"}
-{"type":"result","status":"success","content":"OK","session_id":"xyz789"}`
-
-	message, threadID := parseJSONStream(strings.NewReader(input))
-
-	if message != "OK" {
-		t.Fatalf("message=%q, want %q", message, "OK")
-	}
-	if threadID != "xyz789" {
-		t.Fatalf("threadID=%q, want %q", threadID, "xyz789")
-	}
-}
-
-func TestBackendParseJSONStream_GeminiEvents_DeltaNilReplacesPriorDeltaStream(t *testing.T) {
-	input := `{"type":"init","session_id":"xyz789"}
-{"type":"message","role":"assistant","content":"A","delta":true,"session_id":"xyz789"}
-{"type":"message","role":"assistant","content":"B","delta":true,"session_id":"xyz789"}
-{"type":"message","role":"assistant","content":"FULL"}
-{"type":"result","status":"success","session_id":"xyz789"}`
-
-	message, threadID := parseJSONStream(strings.NewReader(input))
-
-	if message != "FULL" {
-		t.Fatalf("message=%q, want %q", message, "FULL")
-	}
-	if threadID != "xyz789" {
-		t.Fatalf("threadID=%q, want %q", threadID, "xyz789")
-	}
-}
-
-func TestBackendParseJSONStream_GeminiEvents_OnMessageTriggeredOnStatus(t *testing.T) {
-	input := `{"type":"init","session_id":"xyz789"}
-{"type":"message","role":"assistant","content":"Hi","delta":true,"session_id":"xyz789"}
-{"type":"message","content":" there","delta":true}
-{"type":"result","status":"success","session_id":"xyz789"}`
-
-	var called int
-	message, threadID := parseJSONStreamInternal(strings.NewReader(input), nil, nil, func() {
-		called++
-	}, nil)
-
-	if message != "Hi there" {
-		t.Fatalf("message=%q, want %q", message, "Hi there")
-	}
-	if threadID != "xyz789" {
-		t.Fatalf("threadID=%q, want %q", threadID, "xyz789")
-	}
-	if called != 1 {
-		t.Fatalf("onMessage called=%d, want %d", called, 1)
-	}
-}
-
 func TestBackendParseJSONStreamWithWarn_InvalidLine(t *testing.T) {
 	var warnings []string
 	warnFn := func(msg string) { warnings = append(warnings, msg) }
@@ -2229,31 +2102,6 @@ func TestBackendParseJSONStream_OnComplete_ClaudeResult(t *testing.T) {
 	}
 	if threadID != "s-1" {
 		t.Fatalf("threadID = %q, want s-1", threadID)
-	}
-	if onMessageCalls != 1 {
-		t.Fatalf("onMessage calls = %d, want 1", onMessageCalls)
-	}
-	if onCompleteCalls != 1 {
-		t.Fatalf("onComplete calls = %d, want 1", onCompleteCalls)
-	}
-}
-
-func TestBackendParseJSONStream_OnComplete_GeminiTerminalResultStatus(t *testing.T) {
-	input := `{"type":"message","role":"assistant","content":"Hi","delta":true,"session_id":"g-1"}` + "\n" +
-		`{"type":"result","status":"success","session_id":"g-1"}`
-
-	var onMessageCalls int
-	var onCompleteCalls int
-	message, threadID := parseJSONStreamInternal(strings.NewReader(input), nil, nil, func() {
-		onMessageCalls++
-	}, func() {
-		onCompleteCalls++
-	})
-	if message != "Hi" {
-		t.Fatalf("message = %q, want Hi", message)
-	}
-	if threadID != "g-1" {
-		t.Fatalf("threadID = %q, want g-1", threadID)
 	}
 	if onMessageCalls != 1 {
 		t.Fatalf("onMessage calls = %d, want 1", onMessageCalls)
@@ -3279,7 +3127,7 @@ do one
 
 ---TASK---
 id: second
-backend: gemini
+backend: codex
 ---CONTENT---
 do two`)
 	os.Args = []string{"code-dispatcher", "--backend", "claude", "--parallel"}
@@ -3296,8 +3144,8 @@ do two`)
 	if !firstOK || firstBackend != "claude" {
 		t.Fatalf("first backend = %q (present=%v), want claude", firstBackend, firstOK)
 	}
-	if !secondOK || secondBackend != "gemini" {
-		t.Fatalf("second backend = %q (present=%v), want gemini", secondBackend, secondOK)
+	if !secondOK || secondBackend != "codex" {
+		t.Fatalf("second backend = %q (present=%v), want codex", secondBackend, secondOK)
 	}
 }
 
