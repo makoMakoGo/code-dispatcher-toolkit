@@ -13,7 +13,7 @@ from pathlib import Path
 
 DEFAULT_INSTALL_DIR = "~/.code-dispatcher"
 BACKENDS = ("codex", "claude")
-LEGACY_PROMPT_FILES = ("copilot-prompt.md",)
+LEGACY_PROMPT_FILES = ("copilot-prompt.md", "gemini-prompt.md")
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
