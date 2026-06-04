@@ -74,7 +74,7 @@
 </tr>
 <tr>
   <td><a href="docs/pr-review-reply.md"><code>pr&#8209;review&#8209;reply</code></a></td>
-  <td>自主处理 PR 上的 bot review（Gemini / CodeRabbit 等）→ 验证 → 修复或反驳 → 回复线程 → resolve</td>
+  <td>自主处理 PR 上的 bot review（Gemini Code Assist / CodeRabbit 等）→ 验证 → 修复或反驳 → 回复线程 → resolve</td>
   <td>可选</td>
 </tr>
 </table>

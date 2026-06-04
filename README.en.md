@@ -74,7 +74,7 @@ Note: "Dependency" indicates whether the skill relies on the code-dispatcher CLI
 </tr>
 <tr>
   <td><a href="docs/pr-review-reply.md"><code>pr&#8209;review&#8209;reply</code></a></td>
-  <td>Autonomous bot-review triage on PRs (Gemini / CodeRabbit etc.) → verify → fix or rebut → reply in thread → resolve</td>
+  <td>Autonomous bot-review triage on PRs (Gemini Code Assist / CodeRabbit etc.) → verify → fix or rebut → reply in thread → resolve</td>
   <td>Optional</td>
 </tr>
 </table>

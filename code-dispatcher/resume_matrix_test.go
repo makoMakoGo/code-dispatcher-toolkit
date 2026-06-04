@@ -13,9 +13,7 @@ func TestResumeConversation_SupportedBackends(t *testing.T) {
 		backend      Backend
 		sessionID    string
 		newOutput    string
-		newStderr    string
 		resumeOutput string
-		resumeStderr string
 		checkNewArgs func(args []string) error
 		checkResArgs func(args []string, sid string) error
 	}
@@ -84,7 +82,6 @@ func TestResumeConversation_SupportedBackends(t *testing.T) {
 					}
 					return newFakeCmd(fakeCmdConfig{
 						StdoutPlan: []fakeStdoutEvent{{Data: tt.newOutput}},
-						StderrPlan: []fakeStdoutEvent{{Data: tt.newStderr}},
 					})
 				}
 				if calls == 2 {
@@ -93,7 +90,6 @@ func TestResumeConversation_SupportedBackends(t *testing.T) {
 					}
 					return newFakeCmd(fakeCmdConfig{
 						StdoutPlan: []fakeStdoutEvent{{Data: tt.resumeOutput}},
-						StderrPlan: []fakeStdoutEvent{{Data: tt.resumeStderr}},
 					})
 				}
 				t.Fatalf("unexpected extra call %d (args=%v)", calls, args)

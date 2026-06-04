@@ -75,7 +75,7 @@ func parseJSONStreamInternal(r io.Reader, warnFn func(string), infoFn func(strin
 	return parseJSONStreamInternalWithHooks(r, warnFn, infoFn, onMessage, onComplete)
 }
 
-func parseBackendStreamInternal(r io.Reader, backendName string, warnFn func(string), infoFn func(string), onMessage func(), onComplete func()) (message, threadID string) {
+func parseBackendStreamInternal(r io.Reader, _ string, warnFn func(string), infoFn func(string), onMessage func(), onComplete func()) (message, threadID string) {
 	return parseJSONStreamInternalWithHooks(r, warnFn, infoFn, onMessage, onComplete)
 }
 

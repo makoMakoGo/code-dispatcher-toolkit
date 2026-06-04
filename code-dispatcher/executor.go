@@ -1227,7 +1227,7 @@ waitLoop:
 	select {
 	case <-stderrDone:
 	case <-time.After(stdoutDrainTimeout):
-		closeWithReason(stderr, stdoutCloseReasonWait)
+		closeWithReason(stderr, stdoutCloseReasonDrain)
 		<-stderrDone
 	}
 
