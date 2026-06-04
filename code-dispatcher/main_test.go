@@ -2991,6 +2991,9 @@ func TestParallelExecuteConcurrent(t *testing.T) {
 
 	var maxParallel int64
 	var current int64
+	var started int64
+	var releaseOnce sync.Once
+	release := make(chan struct{})
 
 	runParallelTaskFn = func(task TaskSpec, timeout int) TaskResult {
 		cur := atomic.AddInt64(&current, 1)
@@ -3000,21 +3003,22 @@ func TestParallelExecuteConcurrent(t *testing.T) {
 				break
 			}
 		}
-		time.Sleep(150 * time.Millisecond)
+		if atomic.AddInt64(&started, 1) == 3 {
+			releaseOnce.Do(func() { close(release) })
+		}
+		select {
+		case <-release:
+		case <-time.After(time.Second):
+		}
 		atomic.AddInt64(&current, -1)
 		return TaskResult{TaskID: task.ID}
 	}
 
-	start := time.Now()
 	layers := [][]TaskSpec{{{ID: "a"}, {ID: "b"}, {ID: "c"}}}
 	results := executeConcurrent(layers, 10)
-	elapsed := time.Since(start)
 
 	if len(results) != 3 {
 		t.Fatalf("expected 3 results, got %d", len(results))
-	}
-	if elapsed >= 400*time.Millisecond {
-		t.Fatalf("expected concurrent execution, took %v", elapsed)
 	}
 	if maxParallel < 2 {
 		t.Fatalf("expected parallelism >=2, got %d", maxParallel)
