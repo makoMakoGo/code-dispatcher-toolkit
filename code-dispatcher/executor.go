@@ -7,17 +7,11 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"os/signal"
 	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
-	"syscall"
-	"time"
 )
-
-const postMessageTerminateDelay = 1 * time.Second
-const forceKillWaitTimeout = 5 * time.Second
 
 // commandRunner abstracts exec.Cmd for testability
 type commandRunner interface {
@@ -671,8 +665,6 @@ func runTaskWithContext(parentCtx context.Context, taskSpec TaskSpec, backend Ba
 	if invocation.BackendName != "" {
 		cfg.Backend = invocation.BackendName
 	}
-	commandName = invocation.Command
-	backendArgs := invocation.Args
 
 	prefixMsg := func(msg string) string {
 		if taskSpec.ID == "" {
@@ -707,8 +699,6 @@ func runTaskWithContext(parentCtx context.Context, taskSpec TaskSpec, backend Ba
 		logWarnFn = func(msg string) { logWarn(prefixMsg(msg)) }
 		logErrorFn = func(msg string) { logError(prefixMsg(msg)) }
 	}
-
-	stderrBuf := &tailBuffer{limit: stderrCaptureLimit}
 
 	var stdoutLogger *logWriter
 	var stderrLogger *logWriter
@@ -748,358 +738,30 @@ func runTaskWithContext(parentCtx context.Context, taskSpec TaskSpec, backend Ba
 		stderrLogger = newLogWriter("", logLineLimit)
 	}
 
-	ctx := parentCtx
-	ctx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSec)*time.Second)
-	defer cancel()
-	notifyCtx := signalNotifyCtxFn
-	if notifyCtx == nil {
-		notifyCtx = signal.NotifyContext
-	}
-	ctx, stop := notifyCtx(ctx, syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
-
-	attachStderr := func(msg string) string {
-		return fmt.Sprintf("%s; stderr: %s", msg, stderrBuf.String())
-	}
-
-	cmd := newCommandRunner(ctx, commandName, backendArgs...)
-
-	if len(invocation.Env) > 0 {
-		cmd.SetEnv(invocation.Env)
-	}
-	if len(invocation.UnsetEnvKeys) > 0 {
-		cmd.UnsetEnv(invocation.UnsetEnvKeys)
-	}
-
-	if invocation.WorkDir != "" {
-		cmd.SetDir(invocation.WorkDir)
-	}
-
-	stderrWriters := []io.Writer{stderrBuf}
-	if stderrLogger != nil {
-		stderrWriters = append(stderrWriters, stderrLogger)
-	}
-
-	var stderrFilter *filteringWriter
+	var stderrOutput io.Writer
 	if !silent {
-		stderrOut := io.Writer(os.Stderr)
-		if len(invocation.StderrFilterPatterns) > 0 {
-			stderrFilter = newFilteringWriter(os.Stderr, invocation.StderrFilterPatterns)
-			stderrOut = stderrFilter
-		}
-		stderrWriters = append([]io.Writer{stderrOut}, stderrWriters...)
-	}
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		logErrorFn("Failed to create stderr pipe: " + err.Error())
-		result.ExitCode = 1
-		result.Error = attachStderr("failed to create stderr pipe: " + err.Error())
-		return result
+		stderrOutput = os.Stderr
 	}
 
-	var stdinPipe io.WriteCloser
-	if useStdin {
-		stdinPipe, err = cmd.StdinPipe()
-		if err != nil {
-			logErrorFn("Failed to create stdin pipe: " + err.Error())
-			result.ExitCode = 1
-			result.Error = attachStderr("failed to create stdin pipe: " + err.Error())
-			closeWithReason(stderr, "stdin-pipe-failed")
-			return result
-		}
-	}
+	lifecycleResult := runExecutionLifecycle(executionLifecycleRequest{
+		Context:      parentCtx,
+		Invocation:   invocation,
+		TaskText:     taskSpec.Task,
+		UseStdin:     useStdin,
+		TimeoutSec:   timeoutSec,
+		LogPath:      result.LogPath,
+		StdoutLogger: stdoutLogger,
+		StderrLogger: stderrLogger,
+		StderrOutput: stderrOutput,
+		LogInfoFn:    logInfoFn,
+		LogWarnFn:    logWarnFn,
+		LogErrorFn:   logErrorFn,
+	})
 
-	stderrDone := make(chan error, 1)
-
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		logErrorFn("Failed to create stdout pipe: " + err.Error())
-		result.ExitCode = 1
-		result.Error = attachStderr("failed to create stdout pipe: " + err.Error())
-		closeWithReason(stderr, "stdout-pipe-failed")
-		if stdinPipe != nil {
-			_ = stdinPipe.Close()
-		}
-		return result
-	}
-
-	stdoutReader := io.Reader(stdout)
-	if stdoutLogger != nil {
-		stdoutReader = io.TeeReader(stdout, stdoutLogger)
-	}
-
-	// Start parse goroutine BEFORE starting the command to avoid race condition
-	// where fast-completing commands close stdout before parser starts reading
-	messageSeen := make(chan struct{}, 1)
-	completeSeen := make(chan struct{}, 1)
-	parseCh := make(chan parseResult, 1)
-	go func() {
-		parseStream := invocation.ParseStream
-		if parseStream == nil {
-			parseStream = parseStreamForBackend(cfg.Backend)
-		}
-		msg, tid := parseStream(stdoutReader, logWarnFn, logInfoFn, func() {
-			select {
-			case messageSeen <- struct{}{}:
-			default:
-			}
-		}, func() {
-			select {
-			case completeSeen <- struct{}{}:
-			default:
-			}
-		})
-		select {
-		case completeSeen <- struct{}{}:
-		default:
-		}
-		parseCh <- parseResult{message: msg, threadID: tid}
-	}()
-
-	logInfoFn(fmt.Sprintf("Starting %s with args: %s...", commandName, strings.Join(backendArgs[:min(5, len(backendArgs))], " ")))
-
-	if err := cmd.Start(); err != nil {
-		closeWithReason(stdout, "start-failed")
-		closeWithReason(stderr, "start-failed")
-		if stdinPipe != nil {
-			_ = stdinPipe.Close()
-		}
-		if strings.Contains(err.Error(), "executable file not found") {
-			msg := fmt.Sprintf("%s command not found in PATH", commandName)
-			logErrorFn(msg)
-			result.ExitCode = 127
-			result.Error = attachStderr(msg)
-			return result
-		}
-		logErrorFn("Failed to start " + commandName + ": " + err.Error())
-		result.ExitCode = 1
-		result.Error = attachStderr("failed to start " + commandName + ": " + err.Error())
-		return result
-	}
-
-	logInfoFn(fmt.Sprintf("Starting %s with PID: %d", commandName, cmd.Process().Pid()))
-	if logger != nil {
-		logInfoFn(fmt.Sprintf("Log capturing to: %s", logger.Path()))
-	}
-
-	// Start stderr drain AFTER we know the command started, but BEFORE cmd.Wait can close the pipe.
-	go func() {
-		_, copyErr := io.Copy(io.MultiWriter(stderrWriters...), stderr)
-		if stderrFilter != nil {
-			stderrFilter.Flush()
-		}
-		stderrDone <- copyErr
-	}()
-
-	if useStdin && stdinPipe != nil {
-		logInfoFn(fmt.Sprintf("Writing %d chars to stdin...", len(taskSpec.Task)))
-		go func(data string) {
-			defer stdinPipe.Close()
-			_, _ = io.WriteString(stdinPipe, data)
-		}(taskSpec.Task)
-		logInfoFn("Stdin closed")
-	}
-
-	waitCh := make(chan error, 1)
-	go func() { waitCh <- cmd.Wait() }()
-
-	var (
-		waitErr              error
-		forceKillTimer       *forceKillTimer
-		ctxCancelled         bool
-		messageTimer         *time.Timer
-		messageTimerCh       <-chan time.Time
-		forcedAfterComplete  bool
-		terminated           bool
-		messageSeenObserved  bool
-		completeSeenObserved bool
-	)
-
-waitLoop:
-	for {
-		select {
-		case err := <-waitCh:
-			waitErr = err
-			break waitLoop
-		case <-ctx.Done():
-			ctxCancelled = true
-			logErrorFn(cancelReason(commandName, ctx))
-			if !terminated {
-				if timer := terminateCommandFn(cmd); timer != nil {
-					forceKillTimer = timer
-					terminated = true
-				}
-			}
-			for {
-				select {
-				case err := <-waitCh:
-					waitErr = err
-					break waitLoop
-				case <-time.After(forceKillWaitTimeout):
-					if proc := cmd.Process(); proc != nil {
-						_ = sendKillSignal(proc)
-					}
-				}
-			}
-		case <-messageTimerCh:
-			forcedAfterComplete = true
-			messageTimerCh = nil
-			if !terminated {
-				logWarnFn(fmt.Sprintf("%s output parsed; terminating lingering backend", commandName))
-				if timer := terminateCommandFn(cmd); timer != nil {
-					forceKillTimer = timer
-					terminated = true
-				}
-			}
-			// Close pipes to unblock stream readers, then wait for process exit.
-			closeWithReason(stdout, "terminate")
-			closeWithReason(stderr, "terminate")
-			for {
-				select {
-				case err := <-waitCh:
-					waitErr = err
-					break waitLoop
-				case <-time.After(forceKillWaitTimeout):
-					if proc := cmd.Process(); proc != nil {
-						_ = sendKillSignal(proc)
-					}
-				}
-			}
-		case <-completeSeen:
-			completeSeenObserved = true
-			if messageTimer != nil {
-				continue
-			}
-			messageTimer = time.NewTimer(postMessageTerminateDelay)
-			messageTimerCh = messageTimer.C
-		case <-messageSeen:
-			messageSeenObserved = true
-		}
-	}
-
-	if messageTimer != nil {
-		if !messageTimer.Stop() {
-			select {
-			case <-messageTimer.C:
-			default:
-			}
-		}
-	}
-
-	if forceKillTimer != nil {
-		forceKillTimer.Stop()
-	}
-
-	var parsed parseResult
-	switch {
-	case ctxCancelled:
-		closeWithReason(stdout, stdoutCloseReasonCtx)
-		parsed = <-parseCh
-	case messageSeenObserved || completeSeenObserved:
-		closeWithReason(stdout, stdoutCloseReasonWait)
-		parsed = <-parseCh
-	default:
-		drainTimer := time.NewTimer(stdoutDrainTimeout)
-		defer drainTimer.Stop()
-
-		select {
-		case parsed = <-parseCh:
-			closeWithReason(stdout, stdoutCloseReasonWait)
-		case <-messageSeen:
-			messageSeenObserved = true
-			closeWithReason(stdout, stdoutCloseReasonWait)
-			parsed = <-parseCh
-		case <-completeSeen:
-			completeSeenObserved = true
-			closeWithReason(stdout, stdoutCloseReasonWait)
-			parsed = <-parseCh
-		case <-drainTimer.C:
-			closeWithReason(stdout, stdoutCloseReasonDrain)
-			parsed = <-parseCh
-		}
-	}
-
-	// Wait for stderr drain so stderrBuf / stderrLogger are not accessed concurrently.
-	// Important: cmd.Wait can block on internal stderr copying if cmd.Stderr is a non-file writer.
-	// We use StderrPipe and drain ourselves to avoid that deadlock class (common when children inherit pipes).
-	select {
-	case <-stderrDone:
-	case <-time.After(stdoutDrainTimeout):
-		closeWithReason(stderr, stdoutCloseReasonDrain)
-		<-stderrDone
-	}
-
-	if ctxErr := ctx.Err(); ctxErr != nil {
-		if parsed.threadID != "" {
-			result.SessionID = parsed.threadID
-		}
-		if errors.Is(ctxErr, context.DeadlineExceeded) {
-			result.ExitCode = 124
-			result.Error = attachStderr(fmt.Sprintf("%s execution timeout", commandName))
-			return result
-		}
-		result.ExitCode = 130
-		result.Error = attachStderr("execution cancelled")
-		return result
-	}
-
-	if waitErr != nil {
-		if forcedAfterComplete && parsed.message != "" {
-			logWarnFn(fmt.Sprintf("%s terminated after delivering output", commandName))
-		} else {
-			if exitErr, ok := waitErr.(*exec.ExitError); ok {
-				code := exitErr.ExitCode()
-				logErrorFn(fmt.Sprintf("%s exited with status %d", commandName, code))
-				result.ExitCode = code
-				if parsed.threadID != "" {
-					result.SessionID = parsed.threadID
-				}
-				if parsed.message != "" {
-					result.Message = parsed.message
-					result.Error = attachStderr(parsed.message)
-				} else {
-					result.Error = attachStderr(fmt.Sprintf("%s exited with status %d", commandName, code))
-				}
-				return result
-			}
-			logErrorFn(commandName + " error: " + waitErr.Error())
-			result.ExitCode = 1
-			if parsed.threadID != "" {
-				result.SessionID = parsed.threadID
-			}
-			if parsed.message != "" {
-				result.Message = parsed.message
-				result.Error = attachStderr(parsed.message)
-			} else {
-				result.Error = attachStderr(commandName + " error: " + waitErr.Error())
-			}
-			return result
-		}
-	}
-
-	message := parsed.message
-	threadID := parsed.threadID
-	if message == "" {
-		emptyMessageError := fmt.Sprintf("%s completed without agent_message output", commandName)
-		logErrorFn(emptyMessageError)
-		result.ExitCode = 1
-		if threadID != "" {
-			result.SessionID = threadID
-		}
-		result.Error = attachStderr(emptyMessageError)
-		return result
-	}
-
-	if stdoutLogger != nil {
-		stdoutLogger.Flush()
-	}
-	if stderrLogger != nil {
-		stderrLogger.Flush()
-	}
-
-	result.ExitCode = 0
-	result.Message = message
-	result.SessionID = threadID
+	result.ExitCode = lifecycleResult.ExitCode
+	result.Message = lifecycleResult.Message
+	result.SessionID = lifecycleResult.ThreadID
+	result.Error = lifecycleResult.Error
 	if result.LogPath == "" && injectedLogger != nil {
 		result.LogPath = injectedLogger.Path()
 	}
@@ -1122,124 +784,4 @@ func effectiveContext(ctx context.Context) context.Context {
 		return ctx
 	}
 	return context.Background()
-}
-
-func forwardSignals(ctx context.Context, cmd commandRunner, logErrorFn func(string)) {
-	notify := signalNotifyFn
-	stop := signalStopFn
-	if notify == nil {
-		notify = signal.Notify
-	}
-	if stop == nil {
-		stop = signal.Stop
-	}
-
-	sigCh := make(chan os.Signal, 1)
-	notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-
-	go func() {
-		defer stop(sigCh)
-		select {
-		case sig := <-sigCh:
-			logErrorFn(fmt.Sprintf("Received signal: %v", sig))
-			if proc := cmd.Process(); proc != nil {
-				_ = sendTermSignal(proc)
-				time.AfterFunc(time.Duration(forceKillDelay.Load())*time.Second, func() {
-					if p := cmd.Process(); p != nil {
-						_ = sendKillSignal(p)
-					}
-				})
-			}
-		case <-ctx.Done():
-		}
-	}()
-}
-
-func cancelReason(commandName string, ctx context.Context) string {
-	if ctx == nil {
-		return "Context cancelled"
-	}
-
-	if commandName == "" {
-		commandName = backendCommand
-	}
-
-	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-		return fmt.Sprintf("%s execution timeout", commandName)
-	}
-
-	return fmt.Sprintf("Execution cancelled, terminating %s process", commandName)
-}
-
-type stdoutReasonCloser interface {
-	CloseWithReason(string) error
-}
-
-func closeWithReason(rc io.ReadCloser, reason string) {
-	if rc == nil {
-		return
-	}
-	if c, ok := rc.(stdoutReasonCloser); ok {
-		_ = c.CloseWithReason(reason)
-		return
-	}
-	_ = rc.Close()
-}
-
-type forceKillTimer struct {
-	timer   *time.Timer
-	done    chan struct{}
-	stopped atomic.Bool
-	drained atomic.Bool
-}
-
-func (t *forceKillTimer) Stop() {
-	if t == nil || t.timer == nil {
-		return
-	}
-	if !t.timer.Stop() {
-		<-t.done
-		t.drained.Store(true)
-	}
-	t.stopped.Store(true)
-}
-
-func terminateCommand(cmd commandRunner) *forceKillTimer {
-	if cmd == nil {
-		return nil
-	}
-	proc := cmd.Process()
-	if proc == nil {
-		return nil
-	}
-
-	_ = sendTermSignal(proc)
-
-	done := make(chan struct{}, 1)
-	timer := time.AfterFunc(time.Duration(forceKillDelay.Load())*time.Second, func() {
-		if p := cmd.Process(); p != nil {
-			_ = sendKillSignal(p)
-		}
-		close(done)
-	})
-
-	return &forceKillTimer{timer: timer, done: done}
-}
-
-func terminateProcess(cmd commandRunner) *time.Timer {
-	if cmd == nil {
-		return nil
-	}
-	proc := cmd.Process()
-	if proc == nil {
-		return nil
-	}
-
-	_ = sendTermSignal(proc)
-
-	return time.AfterFunc(time.Duration(forceKillDelay.Load())*time.Second, func() {
-		if p := cmd.Process(); p != nil {
-			_ = sendKillSignal(p)
-		}
-	})
 }
