@@ -544,10 +544,6 @@ func TestLoggerCoverageSuite(t *testing.T) {
 		{"TestLogWriterLogLine", TestLogWriterLogLine},
 		{"TestNewLogWriterDefaultMaxLen", TestNewLogWriterDefaultMaxLen},
 		{"TestNewLogWriterDefaultLimit", TestNewLogWriterDefaultLimit},
-		{"TestRunHello", TestRunHello},
-		{"TestRunGreet", TestRunGreet},
-		{"TestRunFarewell", TestRunFarewell},
-		{"TestRunFarewellEmpty", TestRunFarewellEmpty},
 
 		{"TestParallelParseConfig_Success", TestParallelParseConfig_Success},
 		{"TestParallelParseConfig_Backend", TestParallelParseConfig_Backend},
