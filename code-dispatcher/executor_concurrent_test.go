@@ -328,8 +328,8 @@ func TestExecutorHelperCoverage(t *testing.T) {
 		t.Cleanup(resetRuntimeSettingsForTest)
 
 		results := []TaskResult{
-			{TaskID: "ok", ExitCode: 0, Coverage: "92%", CoverageNum: 92, CoverageTarget: 90, KeyOutput: "done"},
-			{TaskID: "warn", ExitCode: 0, Coverage: "80%", CoverageNum: 80, CoverageTarget: 90, KeyOutput: "did"},
+			{TaskID: "ok", ExitCode: 0, Message: structuredReportMessageForTest("92%", "", "0 passed, 0 failed", "done")},
+			{TaskID: "warn", ExitCode: 0, Message: structuredReportMessageForTest("80%", "", "0 passed, 0 failed", "did")},
 			{TaskID: "bad", ExitCode: 2, Error: "boom"},
 		}
 		out := generateFinalOutput(results)
@@ -351,8 +351,8 @@ func TestExecutorHelperCoverage(t *testing.T) {
 		t.Cleanup(resetRuntimeSettingsForTest)
 
 		results := []TaskResult{
-			{TaskID: "ok", ExitCode: 0, Coverage: "92%", CoverageNum: 92, CoverageTarget: 90, KeyOutput: "done"},
-			{TaskID: "warn", ExitCode: 0, Coverage: "80%", CoverageNum: 80, CoverageTarget: 90, KeyOutput: "did"},
+			{TaskID: "ok", ExitCode: 0, Message: structuredReportMessageForTest("92%", "", "0 passed, 0 failed", "done")},
+			{TaskID: "warn", ExitCode: 0, Message: structuredReportMessageForTest("80%", "", "0 passed, 0 failed", "did")},
 			{TaskID: "bad", ExitCode: 2, Error: "boom"},
 		}
 		out := generateFinalOutput(results)

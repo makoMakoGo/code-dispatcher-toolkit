@@ -267,23 +267,6 @@ func run() (exitCode int) {
 
 			results := executeConcurrent(layers, timeoutSec)
 
-			// Extract structured report fields from each result
-			for i := range results {
-				results[i].CoverageTarget = defaultCoverageTarget
-				if results[i].Message == "" {
-					continue
-				}
-
-				if report, found := extractStructuredReport(results[i].Message, 150); found {
-					results[i].Coverage = report.Coverage
-					results[i].CoverageNum = extractCoverageNum(report.Coverage)
-					results[i].FilesChanged = report.FilesChanged
-					results[i].TestsPassed = report.TestsPassed
-					results[i].TestsFailed = report.TestsFailed
-					results[i].KeyOutput = report.KeyOutput
-				}
-			}
-
 			// Default: summary mode (context-efficient)
 			// --full-output: legacy full output mode
 			fmt.Println(generateFinalOutputWithMode(results, !fullOutput))
