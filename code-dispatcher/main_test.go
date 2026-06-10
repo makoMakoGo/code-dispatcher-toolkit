@@ -89,6 +89,15 @@ func (t testBackend) Command() string {
 	return "echo"
 }
 
+func (t testBackend) BuildInvocation(cfg *Config, targetArg string) BackendInvocation {
+	return BackendInvocation{
+		BackendName: t.Name(),
+		Command:     t.Command(),
+		Args:        t.BuildArgs(cfg, targetArg),
+		ParseStream: parseStreamForBackend(t.Name()),
+	}
+}
+
 func withBackend(command string, argsFn func(*Config, string) []string) func() {
 	prev := selectBackendFn
 	selectBackendFn = func(name string) (Backend, error) {
@@ -1692,7 +1701,7 @@ func TestRunBuildCodexArgs_NewMode(t *testing.T) {
 	cfg := &Config{Mode: "new", WorkDir: "/test/dir"}
 	args := buildCodexArgs(cfg, "my task")
 	expected := []string{
-		"e",
+		"exec",
 		"--dangerously-bypass-approvals-and-sandbox",
 		"--skip-git-repo-check",
 		"-C", "/test/dir",
@@ -1713,7 +1722,7 @@ func TestRunBuildCodexArgs_ResumeMode(t *testing.T) {
 	cfg := &Config{Mode: "resume", SessionID: "session-abc"}
 	args := buildCodexArgs(cfg, "-")
 	expected := []string{
-		"e",
+		"exec",
 		"--dangerously-bypass-approvals-and-sandbox",
 		"--skip-git-repo-check",
 		"--json",
@@ -1734,7 +1743,7 @@ func TestRunBuildCodexArgs_ResumeMode(t *testing.T) {
 func TestRunBuildCodexArgs_ResumeMode_EmptySessionHandledGracefully(t *testing.T) {
 	cfg := &Config{Mode: "resume", SessionID: "   ", WorkDir: "/test/dir"}
 	args := buildCodexArgs(cfg, "task")
-	expected := []string{"e", "--dangerously-bypass-approvals-and-sandbox", "--skip-git-repo-check", "-C", "/test/dir", "--json", "task"}
+	expected := []string{"exec", "--dangerously-bypass-approvals-and-sandbox", "--skip-git-repo-check", "-C", "/test/dir", "--json", "task"}
 	if len(args) != len(expected) {
 		t.Fatalf("len mismatch")
 	}
@@ -1811,7 +1820,7 @@ func TestBackendBuildArgs_CodexBackend(t *testing.T) {
 	cfg := &Config{Mode: "new", WorkDir: "/test/dir"}
 	got := backend.BuildArgs(cfg, "task")
 	want := []string{
-		"e",
+		"exec",
 		"--dangerously-bypass-approvals-and-sandbox",
 		"--skip-git-repo-check",
 		"-C", "/test/dir",

@@ -59,7 +59,7 @@ func TestVariousBackendsBuildArgs(t *testing.T) {
 		backend := CodexBackend{}
 		cfg := &Config{Mode: "new", WorkDir: "/tmp"}
 		got := backend.BuildArgs(cfg, "task")
-		want := []string{"e", "--dangerously-bypass-approvals-and-sandbox", "--skip-git-repo-check", "-C", "/tmp", "--json", "task"}
+		want := []string{"exec", "--dangerously-bypass-approvals-and-sandbox", "--skip-git-repo-check", "-C", "/tmp", "--json", "task"}
 		if !reflect.DeepEqual(got, want) {
 			t.Fatalf("got %v, want %v", got, want)
 		}
@@ -85,6 +85,90 @@ func TestClaudeBuildArgs_BackendMetadata(t *testing.T) {
 			t.Fatalf("Command() = %s, want %s", got, tt.command)
 		}
 	}
+}
+
+func TestBackendInvocationPolicy(t *testing.T) {
+	t.Run("codex owns command args env filter and parser policy", func(t *testing.T) {
+		setRuntimeSettingsForTest(map[string]string{
+			"CODE_DISPATCHER_TIMEOUT": "10",
+			"OPENAI_API_KEY":          "secret",
+		})
+		t.Cleanup(resetRuntimeSettingsForTest)
+
+		cfg := &Config{Mode: "new", WorkDir: "/repo", Backend: "codex"}
+		invocation := CodexBackend{}.BuildInvocation(cfg, "task")
+
+		if invocation.BackendName != "codex" {
+			t.Fatalf("BackendName = %q", invocation.BackendName)
+		}
+		if invocation.Command != "codex" {
+			t.Fatalf("Command = %q", invocation.Command)
+		}
+		wantArgs := []string{"exec", "--dangerously-bypass-approvals-and-sandbox", "--skip-git-repo-check", "-C", "/repo", "--json", "task"}
+		if !reflect.DeepEqual(invocation.Args, wantArgs) {
+			t.Fatalf("Args = %v, want %v", invocation.Args, wantArgs)
+		}
+		if invocation.Env["OPENAI_API_KEY"] != "secret" {
+			t.Fatalf("Env = %v, want OPENAI_API_KEY", invocation.Env)
+		}
+		if _, ok := invocation.Env["CODE_DISPATCHER_TIMEOUT"]; ok {
+			t.Fatalf("Env should not include dispatcher control keys: %v", invocation.Env)
+		}
+		if invocation.WorkDir != "" {
+			t.Fatalf("Codex WorkDir = %q, want empty because -C carries workdir", invocation.WorkDir)
+		}
+		if len(invocation.StderrFilterPatterns) == 0 {
+			t.Fatalf("Codex invocation should carry stderr filter patterns")
+		}
+		if invocation.ParseStream == nil {
+			t.Fatalf("Codex invocation missing stream parser")
+		}
+	})
+
+	t.Run("claude owns command args env unset workdir and parser policy", func(t *testing.T) {
+		setRuntimeSettingsForTest(map[string]string{
+			"CODE_DISPATCHER_TIMEOUT": "10",
+			"ANTHROPIC_API_KEY":       "secret",
+		})
+		t.Cleanup(resetRuntimeSettingsForTest)
+
+		cfg := &Config{Mode: "new", WorkDir: "/repo", Backend: "claude"}
+		invocation := ClaudeBackend{}.BuildInvocation(cfg, "task")
+
+		if invocation.BackendName != "claude" {
+			t.Fatalf("BackendName = %q", invocation.BackendName)
+		}
+		if invocation.Command != "claude" {
+			t.Fatalf("Command = %q", invocation.Command)
+		}
+		wantArgs := []string{"-p", "--dangerously-skip-permissions", "--output-format", "stream-json", "--verbose", "task"}
+		if !reflect.DeepEqual(invocation.Args, wantArgs) {
+			t.Fatalf("Args = %v, want %v", invocation.Args, wantArgs)
+		}
+		if invocation.Env["ANTHROPIC_API_KEY"] != "secret" {
+			t.Fatalf("Env = %v, want ANTHROPIC_API_KEY", invocation.Env)
+		}
+		if !reflect.DeepEqual(invocation.UnsetEnvKeys, []string{"CLAUDECODE"}) {
+			t.Fatalf("UnsetEnvKeys = %v", invocation.UnsetEnvKeys)
+		}
+		if invocation.WorkDir != "/repo" {
+			t.Fatalf("WorkDir = %q, want /repo", invocation.WorkDir)
+		}
+		if len(invocation.StderrFilterPatterns) != 0 {
+			t.Fatalf("Claude invocation should not carry stderr filters: %v", invocation.StderrFilterPatterns)
+		}
+		if invocation.ParseStream == nil {
+			t.Fatalf("Claude invocation missing stream parser")
+		}
+	})
+
+	t.Run("claude resume leaves workdir empty", func(t *testing.T) {
+		cfg := &Config{Mode: "resume", SessionID: "sid", WorkDir: "/repo", Backend: "claude"}
+		invocation := ClaudeBackend{}.BuildInvocation(cfg, "task")
+		if invocation.WorkDir != "" {
+			t.Fatalf("resume WorkDir = %q, want empty", invocation.WorkDir)
+		}
+	})
 }
 
 func TestRuntimeEnvForBackend(t *testing.T) {
@@ -172,7 +256,7 @@ func TestCodexBuildArgs_WithModel(t *testing.T) {
 
 	cfg := &Config{Mode: "new", WorkDir: "/tmp"}
 	got := buildCodexArgs(cfg, "task")
-	want := []string{"e", "-m", "o3", "--dangerously-bypass-approvals-and-sandbox", "--skip-git-repo-check", "-C", "/tmp", "--json", "task"}
+	want := []string{"exec", "-m", "o3", "--dangerously-bypass-approvals-and-sandbox", "--skip-git-repo-check", "-C", "/tmp", "--json", "task"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("got %v, want %v", got, want)
 	}

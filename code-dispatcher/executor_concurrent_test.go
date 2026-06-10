@@ -314,11 +314,11 @@ func TestExecutorHelperCoverage(t *testing.T) {
 		}
 
 		args := buildCodexArgs(&Config{Mode: "new", WorkDir: "/tmp"}, "task")
-		if !slices.Equal(args, []string{"e", "--dangerously-bypass-approvals-and-sandbox", "--skip-git-repo-check", "-C", "/tmp", "--json", "task"}) {
+		if !slices.Equal(args, []string{"exec", "--dangerously-bypass-approvals-and-sandbox", "--skip-git-repo-check", "-C", "/tmp", "--json", "task"}) {
 			t.Fatalf("unexpected codex args: %+v", args)
 		}
 		args = buildCodexArgs(&Config{Mode: "resume", SessionID: "sess"}, "target")
-		if !slices.Equal(args, []string{"e", "--dangerously-bypass-approvals-and-sandbox", "--skip-git-repo-check", "--json", "resume", "sess", "target"}) {
+		if !slices.Equal(args, []string{"exec", "--dangerously-bypass-approvals-and-sandbox", "--skip-git-repo-check", "--json", "resume", "sess", "target"}) {
 			t.Fatalf("unexpected resume args: %+v", args)
 		}
 	})

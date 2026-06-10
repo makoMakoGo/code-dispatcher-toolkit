@@ -1,14 +1,31 @@
 package main
 
-import "strings"
+import (
+	"io"
+	"strings"
+)
 
 // Backend defines the contract for invoking different AI CLI backends.
-// Each backend is responsible for supplying the executable command and
-// building the argument list based on the dispatcher config.
+// Each backend owns the policy for turning dispatcher config into a ready
+// backend invocation.
 type Backend interface {
 	Name() string
 	BuildArgs(cfg *Config, targetArg string) []string
 	Command() string
+	BuildInvocation(cfg *Config, targetArg string) BackendInvocation
+}
+
+type BackendStreamParser func(r io.Reader, warnFn func(string), infoFn func(string), onMessage func(), onComplete func()) (message, threadID string)
+
+type BackendInvocation struct {
+	BackendName          string
+	Command              string
+	Args                 []string
+	Env                  map[string]string
+	UnsetEnvKeys         []string
+	WorkDir              string
+	StderrFilterPatterns []string
+	ParseStream          BackendStreamParser
 }
 
 type CodexBackend struct{}
@@ -20,6 +37,16 @@ func (CodexBackend) Command() string {
 func (CodexBackend) BuildArgs(cfg *Config, targetArg string) []string {
 	return buildCodexArgs(cfg, targetArg)
 }
+func (b CodexBackend) BuildInvocation(cfg *Config, targetArg string) BackendInvocation {
+	return BackendInvocation{
+		BackendName:          b.Name(),
+		Command:              b.Command(),
+		Args:                 b.BuildArgs(cfg, targetArg),
+		Env:                  runtimeInjectedEnvForInvocation(),
+		StderrFilterPatterns: codexNoisePatterns,
+		ParseStream:          parseStreamForBackend(b.Name()),
+	}
+}
 
 type ClaudeBackend struct{}
 
@@ -30,14 +57,24 @@ func (ClaudeBackend) Command() string {
 func (ClaudeBackend) BuildArgs(cfg *Config, targetArg string) []string {
 	return buildClaudeArgs(cfg, targetArg)
 }
+func (b ClaudeBackend) BuildInvocation(cfg *Config, targetArg string) BackendInvocation {
+	workDir := ""
+	if cfg != nil && cfg.Mode != "resume" && strings.TrimSpace(cfg.WorkDir) != "" {
+		workDir = cfg.WorkDir
+	}
+	return BackendInvocation{
+		BackendName:  b.Name(),
+		Command:      b.Command(),
+		Args:         b.BuildArgs(cfg, targetArg),
+		Env:          runtimeInjectedEnvForInvocation(),
+		UnsetEnvKeys: []string{"CLAUDECODE"},
+		WorkDir:      workDir,
+		ParseStream:  parseStreamForBackend(b.Name()),
+	}
+}
 
 func runtimeEnvForBackend(backendName string) map[string]string {
-	env := runtimeInjectedEnv()
-	if len(env) == 0 {
-		return nil
-	}
-
-	return env
+	return runtimeInjectedEnvForInvocation()
 }
 
 func runtimeUnsetEnvKeysForBackend(backendName string) []string {
@@ -58,6 +95,78 @@ func resolveBackendModel(backendName string) string {
 		return ""
 	}
 	return strings.TrimSpace(val)
+}
+
+func runtimeInjectedEnvForInvocation() map[string]string {
+	env := runtimeInjectedEnv()
+	if len(env) == 0 {
+		return nil
+	}
+	return env
+}
+
+func parseStreamForBackend(backendName string) BackendStreamParser {
+	return func(r io.Reader, warnFn func(string), infoFn func(string), onMessage func(), onComplete func()) (string, string) {
+		return parseBackendStreamInternal(r, backendName, warnFn, infoFn, onMessage, onComplete)
+	}
+}
+
+func legacyBackendInvocation(backendName string, commandName string, args []string) BackendInvocation {
+	name := normalizeBackendName(backendName)
+	invocation := BackendInvocation{
+		BackendName:  name,
+		Command:      commandName,
+		Args:         args,
+		Env:          runtimeEnvForBackend(name),
+		UnsetEnvKeys: runtimeUnsetEnvKeysForBackend(name),
+		ParseStream:  parseStreamForBackend(name),
+	}
+	if name == "codex" {
+		invocation.StderrFilterPatterns = codexNoisePatterns
+	}
+	if name == "claude" {
+		invocation.UnsetEnvKeys = []string{"CLAUDECODE"}
+	}
+	return invocation
+}
+
+func buildCodexArgs(cfg *Config, targetArg string) []string {
+	if cfg == nil {
+		panic("buildCodexArgs: nil config")
+	}
+
+	var resumeSessionID string
+	isResume := cfg.Mode == "resume"
+	if isResume {
+		resumeSessionID = strings.TrimSpace(cfg.SessionID)
+		if resumeSessionID == "" {
+			logError("invalid config: resume mode requires non-empty session_id")
+			isResume = false
+		}
+	}
+
+	args := []string{"exec"}
+
+	if model := resolveBackendModel("codex"); model != "" {
+		args = append(args, "-m", model)
+	}
+
+	args = append(args, "--dangerously-bypass-approvals-and-sandbox", "--skip-git-repo-check")
+
+	if isResume {
+		return append(args,
+			"--json",
+			"resume",
+			resumeSessionID,
+			targetArg,
+		)
+	}
+
+	return append(args,
+		"-C", cfg.WorkDir,
+		"--json",
+		targetArg,
+	)
 }
 
 func buildClaudeArgs(cfg *Config, targetArg string) []string {
