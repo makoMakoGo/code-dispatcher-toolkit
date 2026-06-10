@@ -168,117 +168,15 @@ func run() (exitCode int) {
 
 	// Handle remaining commands
 	if len(os.Args) > 1 {
-		args := os.Args[1:]
-		parallelIndex := -1
-		for i, arg := range args {
-			if arg == "--parallel" {
-				parallelIndex = i
-				break
+		outcome := runParallelInvocation(name, os.Args[1:])
+		if outcome.Handled {
+			if outcome.Stderr != "" {
+				fmt.Fprint(os.Stderr, outcome.Stderr)
 			}
-		}
-
-		if parallelIndex != -1 {
-			backendName := ""
-			backendSpecified := false
-			fullOutput := false
-			var extras []string
-
-			for i := 0; i < len(args); i++ {
-				arg := args[i]
-				switch {
-				case arg == "--parallel":
-					continue
-				case arg == "--full-output":
-					fullOutput = true
-				case arg == "--backend":
-					if i+1 >= len(args) {
-						fmt.Fprintln(os.Stderr, "ERROR: --backend flag requires a value")
-						return 1
-					}
-					value := strings.TrimSpace(args[i+1])
-					if value == "" {
-						fmt.Fprintln(os.Stderr, "ERROR: --backend flag requires a value")
-						return 1
-					}
-					backendName = value
-					backendSpecified = true
-					i++
-				case strings.HasPrefix(arg, "--backend="):
-					value := strings.TrimSpace(strings.TrimPrefix(arg, "--backend="))
-					if value == "" {
-						fmt.Fprintln(os.Stderr, "ERROR: --backend flag requires a value")
-						return 1
-					}
-					backendName = value
-					backendSpecified = true
-				default:
-					extras = append(extras, arg)
-				}
+			if outcome.Stdout != "" {
+				fmt.Print(outcome.Stdout)
 			}
-
-			if len(extras) > 0 {
-				fmt.Fprintln(os.Stderr, "ERROR: --parallel reads its task configuration from stdin; only --backend and --full-output are allowed.")
-				fmt.Fprintln(os.Stderr, "Usage examples:")
-				fmt.Fprintf(os.Stderr, "  %s --parallel --backend codex < tasks.txt\n", name)
-				fmt.Fprintf(os.Stderr, "  echo '...' | %s --parallel --backend claude\n", name)
-				return 1
-			}
-
-			if !backendSpecified {
-				fmt.Fprintf(os.Stderr, "ERROR: --backend is required in --parallel mode (supported: %s)\n", supportedBackendNamesText())
-				fmt.Fprintln(os.Stderr, "Usage examples:")
-				fmt.Fprintf(os.Stderr, "  %s --parallel --backend codex < tasks.txt\n", name)
-				fmt.Fprintf(os.Stderr, "  %s --parallel --backend claude <<'EOF'\n", name)
-				return 1
-			}
-
-			backend, err := selectBackendFn(backendName)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
-				return 1
-			}
-			backendName = backend.Name()
-
-			data, err := io.ReadAll(stdinReader)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "ERROR: failed to read stdin: %v\n", err)
-				return 1
-			}
-
-			cfg, err := parseParallelConfig(data)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
-				return 1
-			}
-
-			cfg.GlobalBackend = backendName
-			for i := range cfg.Tasks {
-				if strings.TrimSpace(cfg.Tasks[i].Backend) == "" {
-					cfg.Tasks[i].Backend = backendName
-				}
-			}
-
-			timeoutSec := resolveTimeout()
-			layers, err := topologicalSort(cfg.Tasks)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
-				return 1
-			}
-
-			results := executeConcurrent(layers, timeoutSec)
-
-			// Default: summary mode (context-efficient)
-			// --full-output: legacy full output mode
-			fmt.Println(generateFinalOutputWithMode(results, !fullOutput))
-
-			exitCode = 0
-			for _, res := range results {
-				if res.ExitCode != 0 {
-					exitCode = res.ExitCode
-				}
-			}
-
-			return exitCode
+			return outcome.ExitCode
 		}
 	}
 
