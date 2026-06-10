@@ -225,7 +225,7 @@ func run() (exitCode int) {
 			}
 
 			if !backendSpecified {
-				fmt.Fprintln(os.Stderr, "ERROR: --backend is required in --parallel mode (supported: codex, claude)")
+				fmt.Fprintf(os.Stderr, "ERROR: --backend is required in --parallel mode (supported: %s)\n", supportedBackendNamesText())
 				fmt.Fprintln(os.Stderr, "Usage examples:")
 				fmt.Fprintf(os.Stderr, "  %s --parallel --backend codex < tasks.txt\n", name)
 				fmt.Fprintf(os.Stderr, "  %s --parallel --backend claude <<'EOF'\n", name)
