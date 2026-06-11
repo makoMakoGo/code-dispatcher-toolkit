@@ -91,7 +91,7 @@ func (t testBackend) BuildInvocation(cfg *Config, targetArg string) BackendInvoc
 		BackendName: t.Name(),
 		Command:     t.Command(),
 		Args:        t.BuildArgs(cfg, targetArg),
-		ParseStream: parseStreamForBackend(t.Name()),
+		ParseStream: parseJSONStreamInternal,
 	}
 }
 
