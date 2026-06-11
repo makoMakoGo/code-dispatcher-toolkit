@@ -18,14 +18,13 @@ type Backend interface {
 type BackendStreamParser func(r io.Reader, warnFn func(string), infoFn func(string), onMessage func(), onComplete func()) (message, threadID string)
 
 type BackendInvocation struct {
-	BackendName          string
-	Command              string
-	Args                 []string
-	Env                  map[string]string
-	UnsetEnvKeys         []string
-	WorkDir              string
-	StderrFilterPatterns []string
-	ParseStream          BackendStreamParser
+	BackendName  string
+	Command      string
+	Args         []string
+	Env          map[string]string
+	UnsetEnvKeys []string
+	WorkDir      string
+	ParseStream  BackendStreamParser
 }
 
 type CodexBackend struct{}
@@ -39,12 +38,11 @@ func (CodexBackend) BuildArgs(cfg *Config, targetArg string) []string {
 }
 func (b CodexBackend) BuildInvocation(cfg *Config, targetArg string) BackendInvocation {
 	return BackendInvocation{
-		BackendName:          b.Name(),
-		Command:              b.Command(),
-		Args:                 b.BuildArgs(cfg, targetArg),
-		Env:                  runtimeInjectedEnvForInvocation(),
-		StderrFilterPatterns: codexNoisePatterns,
-		ParseStream:          parseJSONStreamInternal,
+		BackendName: b.Name(),
+		Command:     b.Command(),
+		Args:        b.BuildArgs(cfg, targetArg),
+		Env:         runtimeInjectedEnvForInvocation(),
+		ParseStream: parseJSONStreamInternal,
 	}
 }
 
