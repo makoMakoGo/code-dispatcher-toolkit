@@ -1,0 +1,45 @@
+{
+  "runtime_config": {
+    "template": "templates/runtime-config.env",
+    "install_path": ".env"
+  },
+  "binary": {
+    "install_dir": "bin",
+    "name_by_os": {
+      "default": "code-dispatcher",
+      "nt": "code-dispatcher.exe"
+    },
+    "release_assets": [
+      {
+        "system": "Linux",
+        "machines": ["amd64", "x86_64"],
+        "asset": "code-dispatcher-linux-amd64"
+      },
+      {
+        "system": "Darwin",
+        "machines": ["arm64", "aarch64"],
+        "asset": "code-dispatcher-darwin-arm64"
+      },
+      {
+        "system": "Windows",
+        "machines": ["amd64", "x86_64"],
+        "asset": "code-dispatcher-windows-amd64.exe"
+      }
+    ]
+  },
+  "backends": [
+    {
+      "name": "codex",
+      "prompt_template": "prompts/codex-prompt.md",
+      "prompt_file": "codex-prompt.md"
+    },
+    {
+      "name": "claude",
+      "prompt_template": "prompts/claude-prompt.md",
+      "prompt_file": "claude-prompt.md"
+    }
+  ],
+  "legacy_uninstall": {
+    "prompt_files": ["copilot-prompt.md", "gemini-prompt.md"]
+  }
+}

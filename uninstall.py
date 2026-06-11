@@ -7,13 +7,12 @@ Removes only the files installed by ./install.py and leaves unrelated user files
 from __future__ import annotations
 
 import argparse
-import os
 from pathlib import Path
+
+import runtime_assets
 
 
 DEFAULT_INSTALL_DIR = "~/.code-dispatcher"
-BACKENDS = ("codex", "claude")
-LEGACY_PROMPT_FILES = ("copilot-prompt.md", "gemini-prompt.md")
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -65,11 +64,9 @@ def main(argv: list[str] | None = None) -> int:
             print("Aborted.")
             return 0
 
-    exe_name = "code-dispatcher.exe" if os.name == "nt" else "code-dispatcher"
-
     targets = [
-        install_dir / ".env",
-        install_dir / "bin" / exe_name,
+        runtime_assets.env_install_path(install_dir),
+        runtime_assets.binary_path(install_dir),
     ]
 
     removed = 0
@@ -80,9 +77,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Removed: {path}")
 
     prompts_dir = install_dir / "prompts"
-    prompt_files = [f"{backend}-prompt.md" for backend in BACKENDS]
-    prompt_files.extend(LEGACY_PROMPT_FILES)
-    for prompt_file in prompt_files:
+    for prompt_file in runtime_assets.uninstall_prompt_files():
         path = prompts_dir / prompt_file
         if _unlink(path):
             removed += 1

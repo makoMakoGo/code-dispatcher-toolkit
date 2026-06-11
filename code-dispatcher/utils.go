@@ -78,12 +78,11 @@ func defaultPromptFileForBackend(backendName string) string {
 		return ""
 	}
 
-	switch backend {
-	case "codex", "claude":
-		return filepath.Join(base, backend+"-prompt.md")
-	default:
+	promptFile, ok := runtimePromptFileForBackend(backend)
+	if !ok {
 		return ""
 	}
+	return filepath.Join(base, promptFile)
 }
 
 type logWriter struct {

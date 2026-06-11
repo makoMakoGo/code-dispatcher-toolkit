@@ -17,21 +17,19 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import platform
 import shutil
 import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
 
+import runtime_assets
+
 
 DEFAULT_INSTALL_DIR = "~/.code-dispatcher"
 RELEASE_REPO = "zhu-jl18/code-dispatcher-toolkit"
 RELEASE_TAG = "latest"
 HTTP_TIMEOUT_SEC = 30
-ENV_TEMPLATE = Path(__file__).resolve().parent / "templates" / "runtime-config.env"
-
-BACKENDS = ("codex", "claude")
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -68,10 +66,9 @@ def _write_if_missing(path: Path, content: str, *, force: bool) -> None:
 def _install_prompts(install_dir: Path, *, force: bool) -> None:
     prompts_dir = install_dir / "prompts"
     _ensure_dir(prompts_dir)
-    bundled_dir = Path(__file__).resolve().parent / "prompts"
-    for backend in BACKENDS:
-        dest = prompts_dir / f"{backend}-prompt.md"
-        src = bundled_dir / f"{backend}-prompt.md"
+    for backend in runtime_assets.backend_assets():
+        dest = prompts_dir / runtime_assets.prompt_file(backend)
+        src = runtime_assets.prompt_template_path(backend)
         if dest.exists() and not force:
             continue
         if src.is_file():
@@ -81,29 +78,20 @@ def _install_prompts(install_dir: Path, *, force: bool) -> None:
 
 
 def _install_env_template(install_dir: Path, *, force: bool) -> None:
+    env_template_path = runtime_assets.env_template_path()
     try:
-        env_template = ENV_TEMPLATE.read_text(encoding="utf-8")
+        env_template = env_template_path.read_text(encoding="utf-8")
     except FileNotFoundError as e:
-        raise RuntimeError(f"required env template not found: {ENV_TEMPLATE}") from e
+        raise RuntimeError(f"required env template not found: {env_template_path}") from e
     except OSError as e:
-        raise RuntimeError(f"failed to read env template {ENV_TEMPLATE}: {e}") from e
+        raise RuntimeError(f"failed to read env template {env_template_path}: {e}") from e
 
-    _write_if_missing(install_dir / ".env", env_template, force=force)
+    _write_if_missing(runtime_assets.env_install_path(install_dir), env_template, force=force)
 
 
 def _get_artifact_name() -> str:
     """Return release asset name for the current OS/arch."""
-    system = platform.system()
-    machine = platform.machine().lower()
-
-    if system == "Windows" and machine in ("amd64", "x86_64"):
-        return "code-dispatcher-windows-amd64.exe"
-    if system == "Darwin" and machine in ("arm64", "aarch64"):
-        return "code-dispatcher-darwin-arm64"
-    if system == "Linux" and machine in ("amd64", "x86_64"):
-        return "code-dispatcher-linux-amd64"
-
-    raise RuntimeError(f"unsupported platform for release asset: {system}/{machine}")
+    return runtime_assets.artifact_name_for_current_platform()
 
 
 def _github_headers() -> dict[str, str]:
@@ -182,10 +170,9 @@ def _download_to_path(url: str, out: Path) -> None:
 
 
 def _install_router_from_release(install_dir: Path, *, force: bool) -> Path:
-    bin_dir = install_dir / "bin"
+    bin_dir = install_dir / runtime_assets.binary_install_dir_name()
     _ensure_dir(bin_dir)
-    exe_name = "code-dispatcher.exe" if os.name == "nt" else "code-dispatcher"
-    out = bin_dir / exe_name
+    out = bin_dir / runtime_assets.binary_name()
 
     if out.exists() and not force:
         return out
@@ -254,7 +241,7 @@ def main(argv: list[str] | None = None) -> int:
             return 1
 
     print(f"Installed to: {install_dir}")
-    print(f"- env:      {install_dir / '.env'}")
+    print(f"- env:      {runtime_assets.env_install_path(install_dir)}")
     print(f"- prompts:  {install_dir / 'prompts'} (*-prompt.md default templates)")
     if router_path is not None:
         print(f"- binary:   {router_path} (downloaded from GitHub release {RELEASE_REPO}@{RELEASE_TAG})")
