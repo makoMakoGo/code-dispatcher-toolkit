@@ -73,7 +73,7 @@ func runParallelInvocation(dispatcherName string, args []string) parallelRunOutc
 
 	backend, err := selectBackendFn(backendName)
 	if err != nil {
-		return parallelErrorOutcome(err.Error())
+		return parallelErrorOutcome(fmt.Sprintf("selecting backend %q: %v", backendName, err))
 	}
 	backendName = backend.Name()
 

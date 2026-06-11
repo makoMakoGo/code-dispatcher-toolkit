@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -85,5 +86,21 @@ do a`)
 	}
 	if !strings.Contains(outcome.Stderr, "unknown key: unknown") {
 		t.Fatalf("stderr = %q, want unknown-key validation error", outcome.Stderr)
+	}
+}
+
+func TestRunParallelInvocationBackendSelectionErrorIncludesBackend(t *testing.T) {
+	defer resetTestHooks()
+
+	selectBackendFn = func(name string) (Backend, error) {
+		return nil, errors.New("backend unavailable")
+	}
+
+	outcome := runParallelInvocation("code-dispatcher", []string{"--parallel", "--backend", "missing"})
+	if !outcome.Handled || outcome.ExitCode != 1 {
+		t.Fatalf("outcome = %+v", outcome)
+	}
+	if !strings.Contains(outcome.Stderr, `selecting backend "missing": backend unavailable`) {
+		t.Fatalf("stderr = %q, want backend selection context", outcome.Stderr)
 	}
 }

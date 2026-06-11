@@ -23,16 +23,22 @@ type ProjectedTaskResult struct {
 	Report TaskReportProjection
 }
 
+type projectedTaskStatus struct {
+	success     bool
+	belowTarget bool
+	target      float64
+}
+
 func projectTaskResults(results []TaskResult) []ProjectedTaskResult {
 	projected := make([]ProjectedTaskResult, len(results))
 	for i, result := range results {
-		projected[i] = projectTaskResult(result, defaultCoverageTarget)
+		projected[i] = projectTaskResult(result)
 	}
 	return projected
 }
 
-func projectTaskResult(result TaskResult, coverageTarget float64) ProjectedTaskResult {
-	projection := TaskReportProjection{CoverageTarget: coverageTarget}
+func projectTaskResult(result TaskResult) ProjectedTaskResult {
+	projection := TaskReportProjection{CoverageTarget: defaultCoverageTarget}
 	if report, found := extractStructuredReport(result.Message, reportProjectionSummaryMaxLen); found {
 		projection.Found = true
 		projection.Coverage = report.Coverage
@@ -57,6 +63,20 @@ func generateProjectedFinalOutput(results []ProjectedTaskResult) string {
 	return generateProjectedFinalOutputWithMode(results, true)
 }
 
+func statusForProjectedTask(projected ProjectedTaskResult, fallbackCoverageTarget float64) projectedTaskStatus {
+	res := projected.Result
+	report := projected.Report
+	status := projectedTaskStatus{
+		success: res.ExitCode == 0 && res.Error == "",
+		target:  report.CoverageTarget,
+	}
+	if status.target <= 0 {
+		status.target = fallbackCoverageTarget
+	}
+	status.belowTarget = status.success && report.Coverage != "" && status.target > 0 && report.CoverageNum < status.target
+	return status
+}
+
 // generateProjectedFinalOutputWithMode generates output based on mode.
 // summaryOnly=true: structured report - every token has value.
 // summaryOnly=false: full output with complete messages.
@@ -70,15 +90,10 @@ func generateProjectedFinalOutputWithMode(results []ProjectedTaskResult, summary
 	failed := 0
 	belowTarget := 0
 	for _, projected := range results {
-		res := projected.Result
-		report := projected.Report
-		if res.ExitCode == 0 && res.Error == "" {
+		status := statusForProjectedTask(projected, reportCoverageTarget)
+		if status.success {
 			success++
-			target := report.CoverageTarget
-			if target <= 0 {
-				target = reportCoverageTarget
-			}
-			if report.Coverage != "" && target > 0 && report.CoverageNum < target {
+			if status.belowTarget {
 				belowTarget++
 			}
 		} else {
@@ -107,15 +122,9 @@ func generateProjectedFinalOutputWithMode(results []ProjectedTaskResult, summary
 				return sanitizeOutput(strings.Join(report.FilesChanged, ", "))
 			}
 
-			target := report.CoverageTarget
-			if target <= 0 {
-				target = reportCoverageTarget
-			}
+			status := statusForProjectedTask(projected, reportCoverageTarget)
 
-			isSuccess := res.ExitCode == 0 && res.Error == ""
-			isBelowTarget := isSuccess && coverage != "" && target > 0 && report.CoverageNum < target
-
-			if isSuccess && !isBelowTarget {
+			if status.success && !status.belowTarget {
 				sb.WriteString(fmt.Sprintf("\n### %s %s", taskID, successSymbol))
 				if coverage != "" {
 					sb.WriteString(fmt.Sprintf(" %s", coverage))
@@ -135,8 +144,8 @@ func generateProjectedFinalOutputWithMode(results []ProjectedTaskResult, summary
 					sb.WriteString(fmt.Sprintf("Log: %s\n", logPath))
 				}
 
-			} else if isSuccess && isBelowTarget {
-				sb.WriteString(fmt.Sprintf("\n### %s %s %s (below %.0f%%)\n", taskID, warningSymbol, coverage, target))
+			} else if status.success && status.belowTarget {
+				sb.WriteString(fmt.Sprintf("\n### %s %s %s (below %.0f%%)\n", taskID, warningSymbol, coverage, status.target))
 
 				if keyOutput != "" {
 					sb.WriteString(fmt.Sprintf("Did: %s\n", keyOutput))
@@ -179,7 +188,6 @@ func generateProjectedFinalOutputWithMode(results []ProjectedTaskResult, summary
 			var needCoverage []string
 			for _, projected := range results {
 				res := projected.Result
-				report := projected.Report
 				if res.ExitCode != 0 || res.Error != "" {
 					taskID := sanitizeOutput(res.TaskID)
 					reason := sanitizeOutput(res.Error)
@@ -191,11 +199,7 @@ func generateProjectedFinalOutputWithMode(results []ProjectedTaskResult, summary
 					continue
 				}
 
-				target := report.CoverageTarget
-				if target <= 0 {
-					target = reportCoverageTarget
-				}
-				if report.Coverage != "" && target > 0 && report.CoverageNum < target {
+				if statusForProjectedTask(projected, reportCoverageTarget).belowTarget {
 					needCoverage = append(needCoverage, sanitizeOutput(res.TaskID))
 				}
 			}
