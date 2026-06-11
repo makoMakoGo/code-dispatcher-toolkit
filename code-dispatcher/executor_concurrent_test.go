@@ -146,8 +146,7 @@ func (f *execFakeRunner) StdinPipe() (io.WriteCloser, error) {
 	}
 	return &writeCloserStub{}, nil
 }
-func (f *execFakeRunner) SetStderr(io.Writer) {}
-func (f *execFakeRunner) SetDir(dir string)   { f.dir = dir }
+func (f *execFakeRunner) SetDir(dir string) { f.dir = dir }
 func (f *execFakeRunner) SetEnv(env map[string]string) {
 	if len(env) == 0 {
 		return
@@ -200,12 +199,10 @@ func TestExecutorHelperCoverage(t *testing.T) {
 		if _, err := rc.StdinPipe(); err == nil {
 			t.Fatalf("expected error for nil command")
 		}
-		rc.SetStderr(io.Discard)
 		if rc.Process() != nil {
 			t.Fatalf("expected nil process")
 		}
 		rcWithCmd := &realCmd{cmd: &exec.Cmd{}}
-		rcWithCmd.SetStderr(io.Discard)
 		rcWithCmd.SetDir("/tmp")
 		if rcWithCmd.cmd.Dir != "/tmp" {
 			t.Fatalf("expected SetDir to set cmd.Dir, got %q", rcWithCmd.cmd.Dir)
@@ -430,7 +427,7 @@ func TestExecutorRunTaskWithContext(t *testing.T) {
 			return nil
 		}
 
-		res := runTaskWithContext(context.Background(), TaskSpec{Task: "payload", WorkDir: ".", Mode: "resume"}, nil, nil, false, false, 1)
+		res := runTaskWithContext(context.Background(), TaskSpec{Task: "payload", WorkDir: ".", Mode: "resume"}, nil, false, 1)
 		if res.ExitCode == 0 || !strings.Contains(res.Error, "session_id") {
 			t.Fatalf("expected validation error, got %+v", res)
 		}
@@ -446,7 +443,7 @@ func TestExecutorRunTaskWithContext(t *testing.T) {
 			return &execFakeRunner{stdout: rc, process: &execFakeProcess{pid: 1234}}
 		}
 
-		res := runTaskWithContext(context.Background(), TaskSpec{ID: "task-1", Task: "payload", WorkDir: "."}, nil, nil, false, false, 1)
+		res := runTaskWithContext(context.Background(), TaskSpec{ID: "task-1", Task: "payload", WorkDir: "."}, nil, false, 1)
 		if res.Error != "" || res.Message != "hello" || res.ExitCode != 0 {
 			t.Fatalf("unexpected result: %+v", res)
 		}
@@ -466,18 +463,13 @@ func TestExecutorRunTaskWithContext(t *testing.T) {
 		if res := runTask(TaskSpec{Task: "task-text", WorkDir: "."}, true, 1); res.ExitCode != 0 {
 			t.Fatalf("runTask failed: %+v", res)
 		}
-
-		msg, threadID, code := runBackendProcess(context.Background(), []string{"arg"}, "content", false, 1)
-		if code != 0 || msg == "" {
-			t.Fatalf("runBackendProcess unexpected result: msg=%q code=%d threadID=%s", msg, code, threadID)
-		}
 	})
 
 	t.Run("startErrors", func(t *testing.T) {
 		newCommandRunner = func(ctx context.Context, name string, args ...string) commandRunner {
 			return &execFakeRunner{startErr: errors.New("executable file not found"), process: &execFakeProcess{pid: 1}}
 		}
-		res := runTaskWithContext(context.Background(), TaskSpec{Task: "payload", WorkDir: "."}, nil, nil, false, false, 1)
+		res := runTaskWithContext(context.Background(), TaskSpec{Task: "payload", WorkDir: "."}, nil, false, 1)
 		if res.ExitCode != 127 {
 			t.Fatalf("expected missing executable exit code, got %d", res.ExitCode)
 		}
@@ -485,7 +477,7 @@ func TestExecutorRunTaskWithContext(t *testing.T) {
 		newCommandRunner = func(ctx context.Context, name string, args ...string) commandRunner {
 			return &execFakeRunner{startErr: errors.New("start failed"), process: &execFakeProcess{pid: 2}}
 		}
-		res = runTaskWithContext(context.Background(), TaskSpec{Task: "payload", WorkDir: "."}, nil, nil, false, false, 1)
+		res = runTaskWithContext(context.Background(), TaskSpec{Task: "payload", WorkDir: "."}, nil, false, 1)
 		if res.ExitCode == 0 {
 			t.Fatalf("expected non-zero exit on start failure")
 		}
@@ -499,7 +491,7 @@ func TestExecutorRunTaskWithContext(t *testing.T) {
 				waitDelay: 20 * time.Millisecond,
 			}
 		}
-		res := runTaskWithContext(context.Background(), TaskSpec{Task: "payload", WorkDir: ".", UseStdin: true}, nil, nil, false, false, 0)
+		res := runTaskWithContext(context.Background(), TaskSpec{Task: "payload", WorkDir: ".", UseStdin: true}, nil, false, 0)
 		if res.ExitCode == 0 {
 			t.Fatalf("expected timeout result, got %+v", res)
 		}
@@ -509,7 +501,7 @@ func TestExecutorRunTaskWithContext(t *testing.T) {
 		newCommandRunner = func(ctx context.Context, name string, args ...string) commandRunner {
 			return &execFakeRunner{stdoutErr: errors.New("stdout fail"), process: &execFakeProcess{pid: 6}}
 		}
-		res := runTaskWithContext(context.Background(), TaskSpec{Task: "payload", WorkDir: "."}, nil, nil, false, false, 1)
+		res := runTaskWithContext(context.Background(), TaskSpec{Task: "payload", WorkDir: "."}, nil, false, 1)
 		if res.ExitCode == 0 {
 			t.Fatalf("expected failure on stdout pipe error")
 		}
@@ -517,7 +509,7 @@ func TestExecutorRunTaskWithContext(t *testing.T) {
 		newCommandRunner = func(ctx context.Context, name string, args ...string) commandRunner {
 			return &execFakeRunner{stdinErr: errors.New("stdin fail"), process: &execFakeProcess{pid: 7}}
 		}
-		res = runTaskWithContext(context.Background(), TaskSpec{Task: "payload", WorkDir: ".", UseStdin: true}, nil, nil, false, false, 1)
+		res = runTaskWithContext(context.Background(), TaskSpec{Task: "payload", WorkDir: ".", UseStdin: true}, nil, false, 1)
 		if res.ExitCode == 0 {
 			t.Fatalf("expected failure on stdin pipe error")
 		}
@@ -536,7 +528,7 @@ func TestExecutorRunTaskWithContext(t *testing.T) {
 				waitErr: exitErr,
 			}
 		}
-		res := runTaskWithContext(context.Background(), TaskSpec{Task: "payload", WorkDir: "."}, nil, nil, false, false, 1)
+		res := runTaskWithContext(context.Background(), TaskSpec{Task: "payload", WorkDir: "."}, nil, false, 1)
 		if res.ExitCode == 0 {
 			t.Fatalf("expected non-zero exit on wait error")
 		}
@@ -552,7 +544,7 @@ func TestExecutorRunTaskWithContext(t *testing.T) {
 		}
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
-		res := runTaskWithContext(ctx, TaskSpec{Task: "payload", WorkDir: "."}, nil, nil, false, false, 1)
+		res := runTaskWithContext(ctx, TaskSpec{Task: "payload", WorkDir: "."}, nil, false, 1)
 		if res.ExitCode == 0 {
 			t.Fatalf("expected cancellation result")
 		}
@@ -566,7 +558,7 @@ func TestExecutorRunTaskWithContext(t *testing.T) {
 			}
 		}
 		_ = closeLogger()
-		res := runTaskWithContext(context.Background(), TaskSpec{Task: "payload", WorkDir: "."}, nil, nil, false, true, 1)
+		res := runTaskWithContext(context.Background(), TaskSpec{Task: "payload", WorkDir: "."}, nil, true, 1)
 		if res.ExitCode != 0 || res.LogPath == "" {
 			t.Fatalf("expected success with temp logger, got %+v", res)
 		}
@@ -592,7 +584,7 @@ func TestExecutorRunTaskWithContext(t *testing.T) {
 		}()
 
 		ctx := withTaskLogger(context.Background(), injected)
-		res := runTaskWithContext(ctx, TaskSpec{ID: "task-injected", Task: "payload", WorkDir: "."}, nil, nil, false, true, 1)
+		res := runTaskWithContext(ctx, TaskSpec{ID: "task-injected", Task: "payload", WorkDir: "."}, nil, true, 1)
 		if res.ExitCode != 0 || res.LogPath != injected.Path() {
 			t.Fatalf("expected injected logger path, got %+v", res)
 		}
@@ -630,7 +622,7 @@ func TestExecutorRunTaskWithContext(t *testing.T) {
 
 		ctx := withTaskLogger(context.Background(), taskLogger)
 		parentCtx := nilContextForFallbackTest()
-		res := runTaskWithContext(parentCtx, TaskSpec{ID: "task-context", Task: "payload", WorkDir: ".", Context: ctx}, nil, nil, false, true, 1)
+		res := runTaskWithContext(parentCtx, TaskSpec{ID: "task-context", Task: "payload", WorkDir: ".", Context: ctx}, nil, true, 1)
 		if res.ExitCode != 0 || res.LogPath != taskLogger.Path() {
 			t.Fatalf("expected task logger to be reused from spec context, got %+v", res)
 		}
@@ -660,7 +652,7 @@ func TestExecutorRunTaskWithContext(t *testing.T) {
 
 		_ = closeLogger()
 		parentCtx := nilContextForFallbackTest()
-		res := runTaskWithContext(parentCtx, TaskSpec{ID: "task-backend", Task: "payload", WorkDir: "/tmp"}, ClaudeBackend{}, nil, false, false, 1)
+		res := runTaskWithContext(parentCtx, TaskSpec{ID: "task-backend", Task: "payload", WorkDir: "/tmp"}, ClaudeBackend{}, false, 1)
 		if res.ExitCode != 0 || res.Message != "backend" {
 			t.Fatalf("unexpected result: %+v", res)
 		}
@@ -688,7 +680,7 @@ func TestExecutorRunTaskWithContext(t *testing.T) {
 			return rc
 		}
 
-		res := runTaskWithContext(context.Background(), TaskSpec{ID: "task-legacy", Task: "payload", WorkDir: "/tmp", Backend: "claude"}, nil, nil, false, false, 1)
+		res := runTaskWithContext(context.Background(), TaskSpec{ID: "task-legacy", Task: "payload", WorkDir: "/tmp", Backend: "claude"}, nil, false, 1)
 		if res.ExitCode != 0 || res.Message != "ok" {
 			t.Fatalf("unexpected result: %+v", res)
 		}
@@ -713,7 +705,7 @@ func TestExecutorRunTaskWithContext(t *testing.T) {
 			return rc
 		}
 
-		res := runTaskWithContext(context.Background(), TaskSpec{ID: "task-unset", Task: "payload", WorkDir: "/tmp"}, ClaudeBackend{}, nil, false, false, 1)
+		res := runTaskWithContext(context.Background(), TaskSpec{ID: "task-unset", Task: "payload", WorkDir: "/tmp"}, ClaudeBackend{}, false, 1)
 		if res.ExitCode != 0 || res.Message != "ok" {
 			t.Fatalf("unexpected result: %+v", res)
 		}
@@ -738,7 +730,7 @@ func TestExecutorRunTaskWithContext(t *testing.T) {
 				process: &execFakeProcess{pid: 11},
 			}
 		}
-		res := runTaskWithContext(context.Background(), TaskSpec{Task: "payload", WorkDir: "."}, nil, nil, false, false, 1)
+		res := runTaskWithContext(context.Background(), TaskSpec{Task: "payload", WorkDir: "."}, nil, false, 1)
 		if res.ExitCode == 0 {
 			t.Fatalf("expected failure when no agent_message returned")
 		}
@@ -1393,39 +1385,7 @@ func TestExecutorSignalAndTermination(t *testing.T) {
 	forceKillDelay.Store(0)
 	defer forceKillDelay.Store(5)
 
-	proc := &execFakeProcess{pid: 42}
-	cmd := &execFakeRunner{process: proc}
-
-	origNotify := signalNotifyFn
-	origStop := signalStopFn
-	defer func() {
-		signalNotifyFn = origNotify
-		signalStopFn = origStop
-	}()
-
-	signalNotifyFn = func(c chan<- os.Signal, sigs ...os.Signal) {
-		go func() { c <- syscall.SIGINT }()
-	}
-	signalStopFn = func(c chan<- os.Signal) {}
-
-	forwardSignals(context.Background(), cmd, func(string) {})
-	time.Sleep(20 * time.Millisecond)
-
-	proc.mu.Lock()
-	signalled := len(proc.signals)
-	proc.mu.Unlock()
-	if runtime.GOOS != "windows" && signalled == 0 {
-		t.Fatalf("process did not receive signal")
-	}
-	if proc.killed.Load() == 0 {
-		t.Fatalf("process was not killed after signal")
-	}
-
-	timer := terminateProcess(cmd)
-	if timer == nil {
-		t.Fatalf("terminateProcess returned nil timer")
-	}
-	timer.Stop()
+	cmd := &execFakeRunner{process: &execFakeProcess{pid: 42}}
 
 	ft := terminateCommand(cmd)
 	if ft == nil {
@@ -1441,31 +1401,12 @@ func TestExecutorSignalAndTermination(t *testing.T) {
 	}
 	ftKill.Stop()
 
-	cmdKill2 := &execFakeRunner{process: &execFakeProcess{pid: 51}}
-	timer2 := terminateProcess(cmdKill2)
-	time.Sleep(10 * time.Millisecond)
-	if p, ok := cmdKill2.process.(*execFakeProcess); ok && p.killed.Load() == 0 {
-		t.Fatalf("terminateProcess did not kill process")
-	}
-	timer2.Stop()
-
 	if terminateCommand(nil) != nil {
 		t.Fatalf("terminateCommand should return nil for nil cmd")
 	}
 	if terminateCommand(&execFakeRunner{allowNilProcess: true}) != nil {
 		t.Fatalf("terminateCommand should return nil when process is nil")
 	}
-	if terminateProcess(nil) != nil {
-		t.Fatalf("terminateProcess should return nil for nil cmd")
-	}
-	if terminateProcess(&execFakeRunner{allowNilProcess: true}) != nil {
-		t.Fatalf("terminateProcess should return nil when process is nil")
-	}
-
-	signalNotifyFn = func(c chan<- os.Signal, sigs ...os.Signal) {}
-	ctxDone, cancelDone := context.WithCancel(context.Background())
-	cancelDone()
-	forwardSignals(ctxDone, &execFakeRunner{process: &execFakeProcess{pid: 70}}, func(string) {})
 }
 
 func TestExecutorCancelReasonAndCloseWithReason(t *testing.T) {
@@ -1523,22 +1464,6 @@ func TestExecutorForceKillTimerStop(t *testing.T) {
 	var nilTimer *forceKillTimer
 	nilTimer.Stop()
 	(&forceKillTimer{}).Stop()
-}
-
-func TestExecutorForwardSignalsDefaults(t *testing.T) {
-	origNotify := signalNotifyFn
-	origStop := signalStopFn
-	signalNotifyFn = nil
-	signalStopFn = nil
-	defer func() {
-		signalNotifyFn = origNotify
-		signalStopFn = origStop
-	}()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	forwardSignals(ctx, &execFakeRunner{process: &execFakeProcess{pid: 80}}, func(string) {})
-	time.Sleep(10 * time.Millisecond)
 }
 
 func TestExecutorSharedLogFalseWhenCustomLogPath(t *testing.T) {

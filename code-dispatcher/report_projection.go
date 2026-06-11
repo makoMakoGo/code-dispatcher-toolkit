@@ -59,10 +59,6 @@ func generateFinalOutputWithMode(results []TaskResult, summaryOnly bool) string 
 	return generateProjectedFinalOutputWithMode(projectTaskResults(results), summaryOnly)
 }
 
-func generateProjectedFinalOutput(results []ProjectedTaskResult) string {
-	return generateProjectedFinalOutputWithMode(results, true)
-}
-
 func statusForProjectedTask(projected ProjectedTaskResult, fallbackCoverageTarget float64) projectedTaskStatus {
 	res := projected.Result
 	report := projected.Report

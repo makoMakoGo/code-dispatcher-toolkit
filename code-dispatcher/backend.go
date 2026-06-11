@@ -75,10 +75,6 @@ func (b ClaudeBackend) BuildInvocation(cfg *Config, targetArg string) BackendInv
 	}
 }
 
-func runtimeEnvForInvocation() map[string]string {
-	return runtimeInjectedEnvForInvocation()
-}
-
 func runtimeUnsetEnvKeysForBackend(backendName string) []string {
 	if normalizeBackendName(backendName) != "claude" {
 		return nil
@@ -123,7 +119,7 @@ func legacyBackendInvocation(cfg *Config, commandName string, args []string) Bac
 		BackendName:  name,
 		Command:      commandName,
 		Args:         args,
-		Env:          runtimeEnvForInvocation(),
+		Env:          runtimeInjectedEnvForInvocation(),
 		UnsetEnvKeys: runtimeUnsetEnvKeysForBackend(name),
 		ParseStream:  parseStreamForBackend(name),
 	}

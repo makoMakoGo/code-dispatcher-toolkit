@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -29,8 +28,6 @@ func resetTestHooks() {
 	backendCommand = "codex"
 	cleanupHook = nil
 	cleanupLogsFn = cleanupOldLogs
-	signalNotifyFn = signal.Notify
-	signalStopFn = signal.Stop
 	signalNotifyCtxFn = signal.NotifyContext
 	buildArgsFn = buildCodexArgs
 	selectBackendFn = selectBackend
@@ -260,10 +257,6 @@ func (d *drainBlockingCmd) StderrPipe() (io.ReadCloser, error) {
 
 func (d *drainBlockingCmd) StdinPipe() (io.WriteCloser, error) {
 	return d.inner.StdinPipe()
-}
-
-func (d *drainBlockingCmd) SetStderr(w io.Writer) {
-	d.inner.SetStderr(w)
 }
 
 func (d *drainBlockingCmd) SetDir(dir string) {
@@ -555,10 +548,6 @@ func (f *fakeCmd) StdinPipe() (io.WriteCloser, error) {
 	}
 	f.stdinClaim = true
 	return f.stdinWriter, nil
-}
-
-func (f *fakeCmd) SetStderr(w io.Writer) {
-	_ = w
 }
 
 func (f *fakeCmd) SetDir(string) {}
@@ -968,7 +957,7 @@ func TestRunTask_ContextTimeout(t *testing.T) {
 	}
 	defer func() { terminateCommandFn = terminateCommand }()
 
-	result := runTaskWithContext(ctx, TaskSpec{Task: "ctx-timeout", WorkDir: defaultWorkdir}, nil, nil, false, false, 60)
+	result := runTaskWithContext(ctx, TaskSpec{Task: "ctx-timeout", WorkDir: defaultWorkdir}, nil, false, 60)
 
 	if result.ExitCode != 124 {
 		t.Fatalf("exit code = %d, want 124 (%s)", result.ExitCode, result.Error)
@@ -1030,7 +1019,7 @@ func TestRunTask_ForcesStopAfterCompletion(t *testing.T) {
 	backendCommand = "fake-cmd"
 
 	start := time.Now()
-	result := runTaskWithContext(context.Background(), TaskSpec{Task: "done", WorkDir: defaultWorkdir}, nil, nil, false, false, 60)
+	result := runTaskWithContext(context.Background(), TaskSpec{Task: "done", WorkDir: defaultWorkdir}, nil, false, 60)
 	duration := time.Since(start)
 
 	if result.ExitCode != 0 || result.Message != "done" {
@@ -1070,7 +1059,7 @@ func TestRunTask_ForcesStopAfterTurnCompleted(t *testing.T) {
 	backendCommand = "fake-cmd"
 
 	start := time.Now()
-	result := runTaskWithContext(context.Background(), TaskSpec{Task: "done", WorkDir: defaultWorkdir}, nil, nil, false, false, 60)
+	result := runTaskWithContext(context.Background(), TaskSpec{Task: "done", WorkDir: defaultWorkdir}, nil, false, 60)
 	duration := time.Since(start)
 
 	if result.ExitCode != 0 || result.Message != "done" {
@@ -1111,7 +1100,7 @@ func TestRunTask_DoesNotTerminateBeforeThreadCompleted(t *testing.T) {
 	backendCommand = "fake-cmd"
 
 	start := time.Now()
-	result := runTaskWithContext(context.Background(), TaskSpec{Task: "done", WorkDir: defaultWorkdir}, nil, nil, false, false, 60)
+	result := runTaskWithContext(context.Background(), TaskSpec{Task: "done", WorkDir: defaultWorkdir}, nil, false, 60)
 	duration := time.Since(start)
 
 	if result.ExitCode != 0 || result.Message != "final" {
@@ -1584,7 +1573,7 @@ func TestRuntimeEnvLoaded_NoModelFlag(t *testing.T) {
 	newCommandRunner = makeRunner(&gotName, &gotArgs, &fake)
 	t.Cleanup(func() { newCommandRunner = origRunner })
 
-	res := runTaskWithContext(context.Background(), TaskSpec{Task: "hi", Mode: "new", WorkDir: defaultWorkdir}, ClaudeBackend{}, nil, false, true, 5)
+	res := runTaskWithContext(context.Background(), TaskSpec{Task: "hi", Mode: "new", WorkDir: defaultWorkdir}, ClaudeBackend{}, true, 5)
 	if res.ExitCode != 0 || res.Message != "ok" {
 		t.Fatalf("unexpected result: %+v", res)
 	}
@@ -2137,36 +2126,6 @@ func TestBackendParseJSONStream_ScannerError(t *testing.T) {
 	}
 }
 
-func TestBackendDiscardInvalidJSON(t *testing.T) {
-	reader := bufio.NewReader(strings.NewReader("line1\nline2\n"))
-	newReader, err := discardInvalidJSON(nil, reader)
-	if err != nil && !errors.Is(err, io.EOF) {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	line, _ := newReader.ReadString('\n')
-	if strings.TrimSpace(line) != "line2" {
-		t.Fatalf("expected to continue with remaining data, got %q", line)
-	}
-
-	readerNoNewline := bufio.NewReader(strings.NewReader("no newline"))
-	if _, err := discardInvalidJSON(nil, readerNoNewline); err == nil {
-		t.Fatalf("expected error when no newline present")
-	}
-}
-
-func TestBackendHasKey(t *testing.T) {
-	raw := map[string]json.RawMessage{
-		"present": json.RawMessage(`true`),
-	}
-
-	if !hasKey(raw, "present") {
-		t.Fatalf("expected key 'present' to be found")
-	}
-	if hasKey(raw, "absent") {
-		t.Fatalf("did not expect key 'absent' to be found")
-	}
-}
-
 func TestRunGetEnv(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -2672,22 +2631,6 @@ func TestRunTask_WithStdin(t *testing.T) {
 	}
 }
 
-func TestRunBackendProcess_WithStdin(t *testing.T) {
-	defer resetTestHooks()
-	backendCommand = "cat"
-	jsonOutput := `{"type":"thread.started","thread_id":"proc"}`
-	jsonOutput += "\n"
-	jsonOutput += `{"type":"item.completed","item":{"type":"agent_message","text":"ok"}}`
-
-	msg, tid, exit := runBackendProcess(context.Background(), []string{}, jsonOutput, true, 5)
-	if exit != 0 {
-		t.Fatalf("exit code %d, want 0", exit)
-	}
-	if msg != "ok" || tid != "proc" {
-		t.Fatalf("unexpected output msg=%q tid=%q", msg, tid)
-	}
-}
-
 func TestRunTask_ExitError(t *testing.T) {
 	defer resetTestHooks()
 	backendCommand = "false"
@@ -2761,14 +2704,6 @@ func TestRunTask_SignalHandling(t *testing.T) {
 	}
 }
 
-func TestForwardSignals_ContextCancel(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	forwardSignals(ctx, &realCmd{cmd: &exec.Cmd{}}, func(string) {})
-	cancel()
-	time.Sleep(10 * time.Millisecond)
-}
-
 func TestCancelReason(t *testing.T) {
 	const cmdName = "codex"
 
@@ -2788,23 +2723,6 @@ func TestCancelReason(t *testing.T) {
 	cancel()
 	if got := cancelReason(cmdName, ctxCancelled); got != "Execution cancelled, terminating codex process" {
 		t.Fatalf("cancelReason(cancelled) = %q, want %q", got, "Execution cancelled, terminating codex process")
-	}
-}
-
-func TestRunBackendProcess(t *testing.T) {
-	defer resetTestHooks()
-	script := createFakeCodexScript(t, "proc-thread", "proc-msg")
-	backendCommand = script
-
-	msg, threadID, exitCode := runBackendProcess(context.Background(), nil, "ignored", false, 5)
-	if exitCode != 0 {
-		t.Fatalf("exit = %d, want 0", exitCode)
-	}
-	if msg != "proc-msg" {
-		t.Fatalf("message = %q, want proc-msg", msg)
-	}
-	if threadID != "proc-thread" {
-		t.Fatalf("threadID = %q, want proc-thread", threadID)
 	}
 }
 
@@ -4244,96 +4162,6 @@ func TestNewLogWriterDefaultLimit(t *testing.T) {
 	lw = newLogWriter("TEST: ", -5)
 	if lw.maxLen != logLineLimit {
 		t.Fatalf("negative maxLen should default, got %d", lw.maxLen)
-	}
-}
-
-func TestBackendDiscardInvalidJSONBuffer(t *testing.T) {
-	reader := bufio.NewReader(strings.NewReader("bad line\n{\"type\":\"ok\"}\n"))
-	next, err := discardInvalidJSON(nil, reader)
-	if err != nil {
-		t.Fatalf("discardInvalidJSON error: %v", err)
-	}
-	line, err := next.ReadString('\n')
-	if err != nil {
-		t.Fatalf("failed to read next line: %v", err)
-	}
-	if strings.TrimSpace(line) != `{"type":"ok"}` {
-		t.Fatalf("unexpected remaining line: %q", line)
-	}
-
-	t.Run("no newline", func(t *testing.T) {
-		reader := bufio.NewReader(strings.NewReader("partial"))
-		decoder := json.NewDecoder(strings.NewReader(""))
-		if _, err := discardInvalidJSON(decoder, reader); !errors.Is(err, io.EOF) {
-			t.Fatalf("expected EOF when no newline, got %v", err)
-		}
-	})
-}
-
-func TestRunForwardSignals(t *testing.T) {
-	defer resetTestHooks()
-
-	if runtime.GOOS == "windows" {
-		t.Skip("sleep command not available on Windows")
-	}
-
-	execCmd := exec.Command("sleep", "5")
-	if err := execCmd.Start(); err != nil {
-		t.Skipf("unable to start sleep command: %v", err)
-	}
-	defer func() {
-		_ = execCmd.Process.Kill()
-		execCmd.Wait()
-	}()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	forceKillDelay.Store(0)
-	defer forceKillDelay.Store(5)
-
-	ready := make(chan struct{})
-	var captured chan<- os.Signal
-	signalNotifyFn = func(ch chan<- os.Signal, sig ...os.Signal) {
-		captured = ch
-		close(ready)
-	}
-	signalStopFn = func(ch chan<- os.Signal) {}
-	defer func() {
-		signalNotifyFn = signal.Notify
-		signalStopFn = signal.Stop
-	}()
-
-	var mu sync.Mutex
-	var logs []string
-	cmd := &realCmd{cmd: execCmd}
-	forwardSignals(ctx, cmd, func(msg string) {
-		mu.Lock()
-		defer mu.Unlock()
-		logs = append(logs, msg)
-	})
-
-	select {
-	case <-ready:
-	case <-time.After(500 * time.Millisecond):
-		t.Fatalf("signalNotifyFn not invoked")
-	}
-
-	captured <- syscall.SIGINT
-
-	done := make(chan error, 1)
-	go func() { done <- cmd.Wait() }()
-
-	select {
-	case <-done:
-	case <-time.After(2 * time.Second):
-		t.Fatalf("process did not exit after forwarded signal")
-	}
-
-	mu.Lock()
-	defer mu.Unlock()
-	if len(logs) == 0 {
-		t.Fatalf("expected log entry for forwarded signal")
 	}
 }
 

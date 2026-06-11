@@ -95,7 +95,7 @@ func TestGenerateProjectedFinalOutputWithMode(t *testing.T) {
 		{Result: TaskResult{TaskID: "bad", ExitCode: 2, Error: "boom", Message: "panic: bad"}},
 	}
 
-	summary := generateProjectedFinalOutput(results)
+	summary := generateProjectedFinalOutputWithMode(results, true)
 	for _, want := range []string{"3 tasks | 2 passed | 1 failed | 1 below 90%", "### ok", "Did: done", "Files: a.go", "Tests: 3 passed", "### warn", "80% (below 90%)", "### bad"} {
 		if !strings.Contains(summary, want) {
 			t.Fatalf("summary missing %q:\n%s", want, summary)

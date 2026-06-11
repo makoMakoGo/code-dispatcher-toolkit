@@ -189,11 +189,11 @@ func TestBackendInvocationPolicy(t *testing.T) {
 	})
 }
 
-func TestRuntimeEnvForInvocation(t *testing.T) {
+func TestRuntimeInjectedEnvForInvocation(t *testing.T) {
 	t.Run("returns nil when no runtime settings", func(t *testing.T) {
 		setRuntimeSettingsForTest(map[string]string{})
 		t.Cleanup(resetRuntimeSettingsForTest)
-		if got := runtimeEnvForInvocation(); len(got) != 0 {
+		if got := runtimeInjectedEnvForInvocation(); len(got) != 0 {
 			t.Fatalf("got %v, want nil/empty", got)
 		}
 	})
@@ -207,7 +207,7 @@ func TestRuntimeEnvForInvocation(t *testing.T) {
 		})
 		t.Cleanup(resetRuntimeSettingsForTest)
 
-		got := runtimeEnvForInvocation()
+		got := runtimeInjectedEnvForInvocation()
 		if got["ANTHROPIC_API_KEY"] != "secret" || got["FOO"] != "bar" {
 			t.Fatalf("got %v, want ANTHROPIC_API_KEY/FOO", got)
 		}

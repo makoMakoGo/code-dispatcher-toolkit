@@ -45,8 +45,6 @@ var (
 	selectBackendFn    = selectBackend
 	commandContext     = exec.CommandContext
 	cleanupLogsFn      = cleanupOldLogs
-	signalNotifyFn     = signal.Notify
-	signalStopFn       = signal.Stop
 	signalNotifyCtxFn  = signal.NotifyContext
 	terminateCommandFn = terminateCommand
 	defaultBuildArgsFn = buildCodexArgs
