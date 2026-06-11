@@ -31,3 +31,6 @@ jobs:
 
       - name: Run tests with coverage gate
         run: bash scripts/test-coverage.sh
+
+      - name: Run installer asset tests
+        run: python3 test_runtime_assets.py
