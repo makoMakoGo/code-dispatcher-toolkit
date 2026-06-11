@@ -20,8 +20,19 @@ type integrationSummary struct {
 }
 
 type integrationOutput struct {
-	Results []TaskResult       `json:"results"`
-	Summary integrationSummary `json:"summary"`
+	Results []integrationTaskResult `json:"results"`
+	Summary integrationSummary      `json:"summary"`
+}
+
+type integrationTaskResult struct {
+	TaskID    string
+	ExitCode  int
+	Message   string
+	SessionID string
+	Error     string
+	LogPath   string
+	Coverage  string
+	KeyOutput string
 }
 
 func captureStdout(t *testing.T, fn func()) string {
@@ -45,7 +56,7 @@ func parseIntegrationOutput(t *testing.T, out string) integrationOutput {
 	var payload integrationOutput
 
 	lines := strings.Split(out, "\n")
-	var currentTask *TaskResult
+	var currentTask *integrationTaskResult
 	inTaskResults := false
 
 	for _, line := range lines {
@@ -91,7 +102,7 @@ func parseIntegrationOutput(t *testing.T, out string) integrationOutput {
 			if currentTask != nil {
 				payload.Results = append(payload.Results, *currentTask)
 			}
-			currentTask = &TaskResult{}
+			currentTask = &integrationTaskResult{}
 
 			taskLine := strings.TrimPrefix(line, "### ")
 			success, warning, failed := getStatusSymbols()
@@ -139,7 +150,7 @@ func parseIntegrationOutput(t *testing.T, out string) integrationOutput {
 			if currentTask != nil {
 				payload.Results = append(payload.Results, *currentTask)
 			}
-			currentTask = &TaskResult{}
+			currentTask = &integrationTaskResult{}
 			currentTask.TaskID = strings.TrimSuffix(strings.TrimPrefix(line, "--- Task: "), " ---")
 		} else if currentTask != nil && !inTaskResults {
 			// Legacy format parsing
@@ -169,7 +180,7 @@ func parseIntegrationOutput(t *testing.T, out string) integrationOutput {
 	return payload
 }
 
-func findResultByID(t *testing.T, payload integrationOutput, id string) TaskResult {
+func findResultByID(t *testing.T, payload integrationOutput, id string) integrationTaskResult {
 	t.Helper()
 	for _, res := range payload.Results {
 		if res.TaskID == id {
@@ -177,7 +188,7 @@ func findResultByID(t *testing.T, payload integrationOutput, id string) TaskResu
 		}
 	}
 	t.Fatalf("result for task %s not found", id)
-	return TaskResult{}
+	return integrationTaskResult{}
 }
 
 func TestRunParallelEndToEnd_OrderAndConcurrency(t *testing.T) {
