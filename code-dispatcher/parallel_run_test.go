@@ -104,3 +104,16 @@ func TestRunParallelInvocationBackendSelectionErrorIncludesBackend(t *testing.T)
 		t.Fatalf("stderr = %q, want backend selection context", outcome.Stderr)
 	}
 }
+
+func TestRunParallelInvocationMissingBackendListsManifestBackends(t *testing.T) {
+	defer resetTestHooks()
+
+	outcome := runParallelInvocation("code-dispatcher", []string{"--parallel"})
+	if !outcome.Handled || outcome.ExitCode != 1 {
+		t.Fatalf("outcome = %+v", outcome)
+	}
+	want := "(supported: " + supportedBackendNamesText() + ")"
+	if !strings.Contains(outcome.Stderr, want) {
+		t.Fatalf("stderr = %q, want manifest-derived list %q", outcome.Stderr, want)
+	}
+}

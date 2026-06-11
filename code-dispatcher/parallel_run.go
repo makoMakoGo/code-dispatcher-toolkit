@@ -64,7 +64,7 @@ func runParallelInvocation(dispatcherName string, args []string) parallelRunOutc
 
 	if !backendSpecified {
 		var stderr strings.Builder
-		fmt.Fprintln(&stderr, "ERROR: --backend is required in --parallel mode (supported: codex, claude)")
+		fmt.Fprintf(&stderr, "ERROR: --backend is required in --parallel mode (supported: %s)\n", supportedBackendNamesText())
 		fmt.Fprintln(&stderr, "Usage examples:")
 		fmt.Fprintf(&stderr, "  %s --parallel --backend codex < tasks.txt\n", dispatcherName)
 		fmt.Fprintf(&stderr, "  %s --parallel --backend claude <<'EOF'\n", dispatcherName)
