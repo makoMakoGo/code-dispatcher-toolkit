@@ -208,6 +208,7 @@ code-dispatcher --backend claude resume <session_id> "follow-up task"
 
 - Session ID 来自 dispatcher 输出的 `SESSION_ID`（UUID 格式）
 - resume 模式不要追加 `working_dir`；如需不同目录，应开启新会话
+- claude 会话按项目目录（cwd）存储：串行 resume 需在原任务 workdir 下运行 dispatcher；parallel 模式的 resume 任务应在 `workdir:` 中携带原任务目录，dispatcher 会用它启动 claude
 
 ### 并行模式（--parallel）
 

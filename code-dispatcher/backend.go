@@ -58,8 +58,10 @@ func (ClaudeBackend) BuildArgs(cfg *Config, targetArg string) []string {
 	return buildClaudeArgs(cfg, targetArg)
 }
 func (b ClaudeBackend) BuildInvocation(cfg *Config, targetArg string) BackendInvocation {
+	// Claude stores sessions per project directory, so resume must run in the
+	// original task workdir to find the conversation; honor WorkDir in every mode.
 	workDir := ""
-	if cfg != nil && cfg.Mode != "resume" && strings.TrimSpace(cfg.WorkDir) != "" {
+	if cfg != nil && strings.TrimSpace(cfg.WorkDir) != "" {
 		workDir = cfg.WorkDir
 	}
 	return BackendInvocation{
@@ -128,7 +130,7 @@ func legacyBackendInvocation(cfg *Config, commandName string, args []string) Bac
 	if name == "codex" {
 		invocation.StderrFilterPatterns = codexNoisePatterns
 	}
-	if name == "claude" && cfg != nil && cfg.Mode != "resume" && strings.TrimSpace(cfg.WorkDir) != "" {
+	if name == "claude" && cfg != nil && strings.TrimSpace(cfg.WorkDir) != "" {
 		invocation.WorkDir = cfg.WorkDir
 	}
 	return invocation
