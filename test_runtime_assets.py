@@ -111,6 +111,40 @@ class LazyManifestTests(unittest.TestCase):
         self.assertEqual(rc, 1)
         self.assertIn("ERROR: runtime asset manifest not found", stderr.getvalue())
 
+    def test_install_reports_clean_error_when_manifest_malformed(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_dir:
+            bad_manifest = Path(raw_dir) / "runtime_assets.json"
+            bad_manifest.write_text("{not valid json", encoding="utf-8")
+            with mock.patch.object(runtime_assets, "MANIFEST_PATH", bad_manifest):
+                stderr = io.StringIO()
+                with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(stderr):
+                    rc = install.main(["--install-dir", str(Path(raw_dir) / "x"), "--skip-dispatcher"])
+        self.assertEqual(rc, 1)
+        self.assertIn("ERROR: invalid runtime asset manifest", stderr.getvalue())
+
+    def test_uninstall_reports_clean_error_when_manifest_malformed(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_dir:
+            bad_manifest = Path(raw_dir) / "runtime_assets.json"
+            bad_manifest.write_text("{not valid json", encoding="utf-8")
+            with mock.patch.object(runtime_assets, "MANIFEST_PATH", bad_manifest):
+                stderr = io.StringIO()
+                with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(stderr):
+                    rc = uninstall.main(["--install-dir", raw_dir, "--yes"])
+        self.assertEqual(rc, 1)
+        self.assertIn("ERROR: invalid runtime asset manifest", stderr.getvalue())
+
+    def test_manifest_loads_once_across_accessors(self) -> None:
+        fake_manifest = {
+            "binary": {"install_dir": "bin"},
+            "backends": [],
+        }
+        with mock.patch.object(
+            runtime_assets, "_load_manifest", return_value=fake_manifest
+        ) as load_manifest:
+            runtime_assets.binary()
+            runtime_assets.backend_assets()
+        load_manifest.assert_called_once_with()
+
 
 if __name__ == "__main__":
     unittest.main()
