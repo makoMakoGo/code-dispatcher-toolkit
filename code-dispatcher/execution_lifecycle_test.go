@@ -194,6 +194,32 @@ func TestRunExecutionLifecycleClosesStderrOnNormalCompletion(t *testing.T) {
 	}
 }
 
+func TestRunExecutionLifecycleCapsStderrAttachedToError(t *testing.T) {
+	origRunner := newCommandRunner
+	t.Cleanup(func() { newCommandRunner = origRunner })
+
+	fake := newFakeCmd(fakeCmdConfig{
+		StderrPlan: []fakeStdoutEvent{{Data: strings.Repeat("E", 8*1024) + "\n"}},
+		PID:        45,
+	})
+	newCommandRunner = func(ctx context.Context, name string, args ...string) commandRunner {
+		return fake
+	}
+
+	res := runExecutionLifecycle(testExecutionLifecycleRequest(testExecutionLifecycleInvocation("thread-cap")))
+
+	if res.ExitCode == 0 {
+		t.Fatalf("expected empty-message failure, got %+v", res)
+	}
+	maxLen := stderrCaptureLimit + 200 // tail cap plus message prefix slack
+	if len(res.Error) > maxLen {
+		t.Fatalf("error length = %d, want <= %d (stderr tail must stay capped)", len(res.Error), maxLen)
+	}
+	if stderrCaptureLimit != 4*1024 {
+		t.Fatalf("stderrCaptureLimit = %d, want 4096 (errors embed the tail; full stderr goes to the task log)", stderrCaptureLimit)
+	}
+}
+
 func waitForLifecycleCondition(t *testing.T, ok func() bool, msg string) {
 	t.Helper()
 

@@ -19,7 +19,10 @@ const (
 	defaultCoverageTarget = 90.0
 	logLineLimit          = 1000
 	stdinSpecialChars     = "\n\\\"'`$"
-	stderrCaptureLimit    = 64 * 1024
+	// stderrCaptureLimit caps the rolling stderr tail attached to TaskResult.Error
+	// (and thus to execution reports). Full stderr still reaches the task log via
+	// stderrLogger; keep this small so failed tasks cannot flood report output.
+	stderrCaptureLimit    = 4 * 1024
 	defaultBackendName    = "codex"
 	defaultBackendCommand = "codex"
 
