@@ -54,3 +54,17 @@ func TestRuntimeAssetManifestInstallTargets(t *testing.T) {
 		t.Fatalf("release asset count = %d, want 3", len(runtimeAssets.Binary.ReleaseAssets))
 	}
 }
+
+func TestRuntimeAssetManifestRequiresWindowsBinaryName(t *testing.T) {
+	manifest := runtimeAssets
+	manifest.Binary.NameByOS = map[string]string{}
+	for key, value := range runtimeAssets.Binary.NameByOS {
+		manifest.Binary.NameByOS[key] = value
+	}
+	delete(manifest.Binary.NameByOS, "nt")
+
+	err := validateRuntimeAssetManifest(manifest)
+	if err == nil || err.Error() != "runtime asset manifest missing binary.name_by_os.nt" {
+		t.Fatalf("validateRuntimeAssetManifest error = %v", err)
+	}
+}

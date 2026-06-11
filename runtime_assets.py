@@ -19,11 +19,32 @@ def _load_manifest() -> dict[str, Any]:
     except FileNotFoundError as e:
         raise RuntimeError(f"runtime asset manifest not found: {MANIFEST_PATH}") from e
     except json.JSONDecodeError as e:
-        raise RuntimeError(f"invalid runtime asset manifest: {MANIFEST_PATH}") from e
+        raise RuntimeError(
+            f"invalid runtime asset manifest: {MANIFEST_PATH}: "
+            f"line {e.lineno}, column {e.colno}: {e.msg}"
+        ) from e
+    except OSError as e:
+        raise RuntimeError(f"failed to read runtime asset manifest: {MANIFEST_PATH}: {e}") from e
 
     if not isinstance(data, dict):
         raise RuntimeError("runtime asset manifest must be a JSON object")
+    _validate_binary_names(data)
     return data
+
+
+def _validate_binary_names(data: dict[str, Any]) -> None:
+    binary = data.get("binary")
+    if not isinstance(binary, dict):
+        raise RuntimeError("runtime asset manifest binary must be an object")
+    names = binary.get("name_by_os")
+    if not isinstance(names, dict):
+        raise RuntimeError("runtime asset manifest binary.name_by_os must be an object")
+    for key in ("default", "nt"):
+        value = names.get(key)
+        if not isinstance(value, str) or not value.strip():
+            raise RuntimeError(
+                f"runtime asset manifest binary.name_by_os.{key} must be a non-empty string"
+            )
 
 
 MANIFEST = _load_manifest()

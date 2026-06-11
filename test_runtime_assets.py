@@ -36,9 +36,9 @@ class RuntimeAssetsTests(unittest.TestCase):
                 rc = install.main(["--install-dir", str(install_dir), "--skip-dispatcher"])
 
             self.assertEqual(rc, 0)
-            self.assertTrue((install_dir / ".env").is_file())
-            self.assertTrue((install_dir / "prompts" / "codex-prompt.md").is_file())
-            self.assertTrue((install_dir / "prompts" / "claude-prompt.md").is_file())
+            self.assertTrue(runtime_assets.env_install_path(install_dir).is_file())
+            for prompt_file in runtime_assets.prompt_install_files():
+                self.assertTrue((install_dir / "prompts" / prompt_file).is_file())
 
     def test_uninstall_removes_manifest_assets_and_legacy_prompts(self) -> None:
         with tempfile.TemporaryDirectory() as raw_dir:

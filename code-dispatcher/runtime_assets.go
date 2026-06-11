@@ -79,6 +79,9 @@ func validateRuntimeAssetManifest(manifest runtimeAssetManifest) error {
 	if strings.TrimSpace(manifest.Binary.NameByOS["default"]) == "" {
 		return fmt.Errorf("runtime asset manifest missing binary.name_by_os.default")
 	}
+	if strings.TrimSpace(manifest.Binary.NameByOS["nt"]) == "" {
+		return fmt.Errorf("runtime asset manifest missing binary.name_by_os.nt")
+	}
 	if len(manifest.Binary.ReleaseAssets) == 0 {
 		return fmt.Errorf("runtime asset manifest missing binary.release_assets")
 	}
