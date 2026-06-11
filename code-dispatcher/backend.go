@@ -44,7 +44,7 @@ func (b CodexBackend) BuildInvocation(cfg *Config, targetArg string) BackendInvo
 		Args:                 b.BuildArgs(cfg, targetArg),
 		Env:                  runtimeInjectedEnvForInvocation(),
 		StderrFilterPatterns: codexNoisePatterns,
-		ParseStream:          parseStreamForBackend(b.Name()),
+		ParseStream:          parseJSONStreamInternal,
 	}
 }
 
@@ -69,9 +69,9 @@ func (b ClaudeBackend) BuildInvocation(cfg *Config, targetArg string) BackendInv
 		Command:      b.Command(),
 		Args:         b.BuildArgs(cfg, targetArg),
 		Env:          runtimeInjectedEnvForInvocation(),
-		UnsetEnvKeys: []string{"CLAUDECODE"},
+		UnsetEnvKeys: runtimeUnsetEnvKeysForBackend(b.Name()),
 		WorkDir:      workDir,
-		ParseStream:  parseStreamForBackend(b.Name()),
+		ParseStream:  parseJSONStreamInternal,
 	}
 }
 
@@ -103,32 +103,31 @@ func runtimeInjectedEnvForInvocation() map[string]string {
 	return env
 }
 
-func parseStreamForBackend(backendName string) BackendStreamParser {
-	return func(r io.Reader, warnFn func(string), infoFn func(string), onMessage func(), onComplete func()) (string, string) {
-		return parseBackendStreamInternal(r, backendName, warnFn, infoFn, onMessage, onComplete)
-	}
-}
-
+// legacyBackendInvocation builds the invocation for the global-hook execution
+// path, where tests may inject commandName and pre-built args. Backend policy
+// (env injection, unset keys, workdir, stream parsing) is delegated to the
+// registry backend so it lives in exactly one place; command and args are then
+// overridden with the caller-provided values.
 func legacyBackendInvocation(cfg *Config, commandName string, args []string) BackendInvocation {
 	backendName := ""
 	if cfg != nil {
 		backendName = cfg.Backend
 	}
 	name := normalizeBackendName(backendName)
-	invocation := BackendInvocation{
-		BackendName:  name,
-		Command:      commandName,
-		Args:         args,
-		Env:          runtimeInjectedEnvForInvocation(),
-		UnsetEnvKeys: runtimeUnsetEnvKeysForBackend(name),
-		ParseStream:  parseStreamForBackend(name),
+	backend, err := selectBackendFn(name)
+	if err != nil {
+		// Unknown backend: keep a generic invocation without backend policy.
+		return BackendInvocation{
+			BackendName: name,
+			Command:     commandName,
+			Args:        args,
+			Env:         runtimeInjectedEnvForInvocation(),
+			ParseStream: parseJSONStreamInternal,
+		}
 	}
-	if name == "codex" {
-		invocation.StderrFilterPatterns = codexNoisePatterns
-	}
-	if name == "claude" && cfg != nil && strings.TrimSpace(cfg.WorkDir) != "" {
-		invocation.WorkDir = cfg.WorkDir
-	}
+	invocation := backend.BuildInvocation(cfg, "")
+	invocation.Command = commandName
+	invocation.Args = args
 	return invocation
 }
 
