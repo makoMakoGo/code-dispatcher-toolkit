@@ -10,7 +10,6 @@ import (
 type serialInvocationPlan struct {
 	Invocation BackendInvocation
 	TaskSpec   TaskSpec
-	UseStdin   bool
 	Reasons    []string
 }
 
@@ -51,27 +50,26 @@ func planSerialInvocation(cfg *Config, backend Backend) (*serialInvocationPlan, 
 	return &serialInvocationPlan{
 		Invocation: invocation,
 		TaskSpec:   taskSpec,
-		UseStdin:   useStdin,
 		Reasons:    serialStdinReasons(taskText, piped, cfg.ExplicitStdin),
 	}, nil
 }
 
-func resolveSerialTaskText(cfg *Config) (taskText string, piped bool, err error) {
+func resolveSerialTaskText(cfg *Config) (string, bool, error) {
 	if cfg.ExplicitStdin {
 		data, err := io.ReadAll(stdinReader)
 		if err != nil {
-			return "", false, fmt.Errorf("Failed to read stdin: %w", err)
+			return "", false, fmt.Errorf("failed to read stdin: %w", err)
 		}
-		taskText = string(data)
+		taskText := string(data)
 		if taskText == "" {
-			return "", false, fmt.Errorf("Explicit stdin mode requires task input from stdin")
+			return "", false, fmt.Errorf("explicit stdin mode requires task input from stdin")
 		}
 		return taskText, !isTerminal(), nil
 	}
 
 	pipedTask, err := readPipedTask()
 	if err != nil {
-		return "", false, fmt.Errorf("Failed to read piped stdin: %w", err)
+		return "", false, fmt.Errorf("failed to read piped stdin: %w", err)
 	}
 	if pipedTask != "" {
 		return pipedTask, true, nil

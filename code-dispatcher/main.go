@@ -332,7 +332,7 @@ func run() (exitCode int) {
 	fmt.Fprintf(os.Stderr, "  PID: %d\n", os.Getpid())
 	fmt.Fprintf(os.Stderr, "  Log: %s\n", logger.Path())
 
-	if plan.UseStdin && len(plan.Reasons) > 0 {
+	if plan.TaskSpec.UseStdin && len(plan.Reasons) > 0 {
 		logWarn(fmt.Sprintf("Using stdin mode for task due to: %s", strings.Join(plan.Reasons, ", ")))
 	}
 

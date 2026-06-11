@@ -129,8 +129,53 @@ func TestPlanSerialInvocationInjectsDefaultPrompt(t *testing.T) {
 	if !plan.TaskSpec.UseStdin {
 		t.Fatalf("prompt-wrapped task should use stdin")
 	}
+	if !hasSerialReason(plan.Reasons, "newline") {
+		t.Fatalf("Reasons = %v, want newline reason from wrapped prompt", plan.Reasons)
+	}
 	if got := plan.Invocation.Args[len(plan.Invocation.Args)-1]; got != "-" {
 		t.Fatalf("last arg = %q, want stdin target", got)
+	}
+}
+
+func TestSerialStdinReasons(t *testing.T) {
+	tests := []struct {
+		name          string
+		task          string
+		piped         bool
+		explicitStdin bool
+		want          []string
+	}{
+		{
+			name: "no reasons",
+			task: "plain task",
+			want: nil,
+		},
+		{
+			name:          "piped and explicit",
+			task:          "plain task",
+			piped:         true,
+			explicitStdin: true,
+			want:          []string{"piped input", `explicit "-"`},
+		},
+		{
+			name: "special characters",
+			task: "line1\npath\\file \"quote\" 'single' `tick` $HOME",
+			want: []string{"newline", "backslash", "double-quote", "single-quote", "backtick", "dollar"},
+		},
+		{
+			name: "length threshold",
+			task: strings.Repeat("x", 801),
+			want: []string{"length>800"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := serialStdinReasons(tt.task, tt.piped, tt.explicitStdin)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Fatalf("serialStdinReasons(%q, piped=%v, explicit=%v) = %v, want %v", tt.task, tt.piped, tt.explicitStdin, got, tt.want)
+			}
+		})
 	}
 }
 
