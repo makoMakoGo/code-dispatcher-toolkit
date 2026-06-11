@@ -117,9 +117,6 @@ func TestBackendInvocationPolicy(t *testing.T) {
 		if invocation.WorkDir != "" {
 			t.Fatalf("Codex WorkDir = %q, want empty because -C carries workdir", invocation.WorkDir)
 		}
-		if len(invocation.StderrFilterPatterns) == 0 {
-			t.Fatalf("Codex invocation should carry stderr filter patterns")
-		}
 		if invocation.ParseStream == nil {
 			t.Fatalf("Codex invocation missing stream parser")
 		}
@@ -153,9 +150,6 @@ func TestBackendInvocationPolicy(t *testing.T) {
 		}
 		if invocation.WorkDir != "/repo" {
 			t.Fatalf("WorkDir = %q, want /repo", invocation.WorkDir)
-		}
-		if len(invocation.StderrFilterPatterns) != 0 {
-			t.Fatalf("Claude invocation should not carry stderr filters: %v", invocation.StderrFilterPatterns)
 		}
 		if invocation.ParseStream == nil {
 			t.Fatalf("Claude invocation missing stream parser")

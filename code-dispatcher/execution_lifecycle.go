@@ -75,14 +75,8 @@ func runExecutionLifecycle(req executionLifecycleRequest) executionLifecycleResu
 		stderrWriters = append(stderrWriters, req.StderrLogger)
 	}
 
-	var stderrFilter *filteringWriter
 	if req.StderrOutput != nil {
-		stderrOut := req.StderrOutput
-		if len(req.Invocation.StderrFilterPatterns) > 0 {
-			stderrFilter = newFilteringWriter(req.StderrOutput, req.Invocation.StderrFilterPatterns)
-			stderrOut = stderrFilter
-		}
-		stderrWriters = append([]io.Writer{stderrOut}, stderrWriters...)
+		stderrWriters = append([]io.Writer{req.StderrOutput}, stderrWriters...)
 	}
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
@@ -178,9 +172,6 @@ func runExecutionLifecycle(req executionLifecycleRequest) executionLifecycleResu
 
 	go func() {
 		_, copyErr := io.Copy(io.MultiWriter(stderrWriters...), stderr)
-		if stderrFilter != nil {
-			stderrFilter.Flush()
-		}
 		stderrDone <- copyErr
 	}()
 
