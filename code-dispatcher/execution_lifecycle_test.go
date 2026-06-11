@@ -172,6 +172,28 @@ func testExecutionLifecycleInvocation(threadID string) BackendInvocation {
 	}
 }
 
+func TestRunExecutionLifecycleClosesStderrOnNormalCompletion(t *testing.T) {
+	origRunner := newCommandRunner
+	t.Cleanup(func() { newCommandRunner = origRunner })
+
+	fake := newFakeCmd(fakeCmdConfig{
+		StdoutPlan: []fakeStdoutEvent{{Data: "done\n"}},
+		PID:        44,
+	})
+	newCommandRunner = func(ctx context.Context, name string, args ...string) commandRunner {
+		return fake
+	}
+
+	res := runExecutionLifecycle(testExecutionLifecycleRequest(testExecutionLifecycleInvocation("thread-close")))
+
+	if res.ExitCode != 0 || res.Message != "done" {
+		t.Fatalf("lifecycle result = %+v", res)
+	}
+	if got := fake.stderr.Reason(); got != stdoutCloseReasonWait {
+		t.Fatalf("stderr close reason = %q, want %q (stderr reader leaked on normal completion)", got, stdoutCloseReasonWait)
+	}
+}
+
 func waitForLifecycleCondition(t *testing.T, ok func() bool, msg string) {
 	t.Helper()
 
