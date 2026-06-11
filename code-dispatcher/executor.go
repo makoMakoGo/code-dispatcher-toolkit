@@ -42,14 +42,25 @@ type processHandle interface {
 
 // realCmd implements commandRunner using exec.Cmd
 type realCmd struct {
-	cmd *exec.Cmd
+	cmd          *exec.Cmd
+	stdoutWriter *os.File
+	stderrWriter *os.File
 }
 
 func (r *realCmd) Start() error {
 	if r.cmd == nil {
 		return errors.New("command is nil")
 	}
-	return r.cmd.Start()
+	err := r.cmd.Start()
+	if r.stdoutWriter != nil {
+		_ = r.stdoutWriter.Close()
+		r.stdoutWriter = nil
+	}
+	if r.stderrWriter != nil {
+		_ = r.stderrWriter.Close()
+		r.stderrWriter = nil
+	}
+	return err
 }
 
 func (r *realCmd) Wait() error {
@@ -63,14 +74,38 @@ func (r *realCmd) StdoutPipe() (io.ReadCloser, error) {
 	if r.cmd == nil {
 		return nil, errors.New("command is nil")
 	}
-	return r.cmd.StdoutPipe()
+	if r.cmd.Stdout != nil {
+		return nil, errors.New("stdout already set")
+	}
+	if r.cmd.Process != nil {
+		return nil, errors.New("stdout pipe after process started")
+	}
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		return nil, err
+	}
+	r.cmd.Stdout = writer
+	r.stdoutWriter = writer
+	return reader, nil
 }
 
 func (r *realCmd) StderrPipe() (io.ReadCloser, error) {
 	if r.cmd == nil {
 		return nil, errors.New("command is nil")
 	}
-	return r.cmd.StderrPipe()
+	if r.cmd.Stderr != nil {
+		return nil, errors.New("stderr already set")
+	}
+	if r.cmd.Process != nil {
+		return nil, errors.New("stderr pipe after process started")
+	}
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		return nil, err
+	}
+	r.cmd.Stderr = writer
+	r.stderrWriter = writer
+	return reader, nil
 }
 
 func (r *realCmd) StdinPipe() (io.WriteCloser, error) {
@@ -571,45 +606,6 @@ func getStatusSymbols() (success, warning, failed string) {
 	return "✓", "⚠️", "✗"
 }
 
-func buildCodexArgs(cfg *Config, targetArg string) []string {
-	if cfg == nil {
-		panic("buildCodexArgs: nil config")
-	}
-
-	var resumeSessionID string
-	isResume := cfg.Mode == "resume"
-	if isResume {
-		resumeSessionID = strings.TrimSpace(cfg.SessionID)
-		if resumeSessionID == "" {
-			logError("invalid config: resume mode requires non-empty session_id")
-			isResume = false
-		}
-	}
-
-	args := []string{"e"}
-
-	if model := resolveBackendModel("codex"); model != "" {
-		args = append(args, "-m", model)
-	}
-
-	args = append(args, "--dangerously-bypass-approvals-and-sandbox", "--skip-git-repo-check")
-
-	if isResume {
-		return append(args,
-			"--json",
-			"resume",
-			resumeSessionID,
-			targetArg,
-		)
-	}
-
-	return append(args,
-		"-C", cfg.WorkDir,
-		"--json",
-		targetArg,
-	)
-}
-
 func runTask(taskSpec TaskSpec, silent bool, timeoutSec int) TaskResult {
 	return runTaskWithContext(context.Background(), taskSpec, nil, nil, false, silent, timeoutSec)
 }
@@ -637,8 +633,6 @@ func runTaskWithContext(parentCtx context.Context, taskSpec TaskSpec, backend Ba
 	commandName := backendCommand
 	argsBuilder := buildArgsFn
 	if backend != nil {
-		commandName = backend.Command()
-		argsBuilder = backend.BuildArgs
 		cfg.Backend = backend.Name()
 	} else if taskSpec.Backend != "" {
 		cfg.Backend = taskSpec.Backend
@@ -659,21 +653,26 @@ func runTaskWithContext(parentCtx context.Context, taskSpec TaskSpec, backend Ba
 		return result
 	}
 
-	backendEnv := runtimeEnvForBackend(cfg.Backend)
-	backendEnvUnsetKeys := runtimeUnsetEnvKeysForBackend(cfg.Backend)
-
 	useStdin := taskSpec.UseStdin
 	targetArg := taskSpec.Task
 	if useStdin {
 		targetArg = "-"
 	}
 
-	var backendArgs []string
-	if useCustomArgs {
-		backendArgs = customArgs
-	} else {
-		backendArgs = argsBuilder(cfg, targetArg)
+	invocation := BackendInvocation{}
+	switch {
+	case useCustomArgs:
+		invocation = legacyBackendInvocation(cfg, commandName, customArgs)
+	case backend != nil:
+		invocation = backend.BuildInvocation(cfg, targetArg)
+	default:
+		invocation = legacyBackendInvocation(cfg, commandName, argsBuilder(cfg, targetArg))
 	}
+	if invocation.BackendName != "" {
+		cfg.Backend = invocation.BackendName
+	}
+	commandName = invocation.Command
+	backendArgs := invocation.Args
 
 	prefixMsg := func(msg string) string {
 		if taskSpec.ID == "" {
@@ -765,17 +764,15 @@ func runTaskWithContext(parentCtx context.Context, taskSpec TaskSpec, backend Ba
 
 	cmd := newCommandRunner(ctx, commandName, backendArgs...)
 
-	if len(backendEnv) > 0 {
-		cmd.SetEnv(backendEnv)
+	if len(invocation.Env) > 0 {
+		cmd.SetEnv(invocation.Env)
 	}
-	if len(backendEnvUnsetKeys) > 0 {
-		cmd.UnsetEnv(backendEnvUnsetKeys)
+	if len(invocation.UnsetEnvKeys) > 0 {
+		cmd.UnsetEnv(invocation.UnsetEnvKeys)
 	}
 
-	// For backends that don't support -C flag (claude), set working directory via cmd.Dir.
-	// Codex passes workdir via -C flag, so we skip setting Dir for it to avoid conflicts
-	if commandName != "codex" && cfg.WorkDir != "" && cfg.Mode != "resume" {
-		cmd.SetDir(cfg.WorkDir)
+	if invocation.WorkDir != "" {
+		cmd.SetDir(invocation.WorkDir)
 	}
 
 	stderrWriters := []io.Writer{stderrBuf}
@@ -786,8 +783,8 @@ func runTaskWithContext(parentCtx context.Context, taskSpec TaskSpec, backend Ba
 	var stderrFilter *filteringWriter
 	if !silent {
 		stderrOut := io.Writer(os.Stderr)
-		if cfg.Backend == "codex" {
-			stderrFilter = newFilteringWriter(os.Stderr, codexNoisePatterns)
+		if len(invocation.StderrFilterPatterns) > 0 {
+			stderrFilter = newFilteringWriter(os.Stderr, invocation.StderrFilterPatterns)
 			stderrOut = stderrFilter
 		}
 		stderrWriters = append([]io.Writer{stderrOut}, stderrWriters...)
@@ -837,7 +834,11 @@ func runTaskWithContext(parentCtx context.Context, taskSpec TaskSpec, backend Ba
 	completeSeen := make(chan struct{}, 1)
 	parseCh := make(chan parseResult, 1)
 	go func() {
-		msg, tid := parseBackendStreamInternal(stdoutReader, cfg.Backend, logWarnFn, logInfoFn, func() {
+		parseStream := invocation.ParseStream
+		if parseStream == nil {
+			parseStream = parseStreamForBackend(cfg.Backend)
+		}
+		msg, tid := parseStream(stdoutReader, logWarnFn, logInfoFn, func() {
 			select {
 			case messageSeen <- struct{}{}:
 			default:

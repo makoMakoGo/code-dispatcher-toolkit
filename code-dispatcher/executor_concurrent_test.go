@@ -314,11 +314,11 @@ func TestExecutorHelperCoverage(t *testing.T) {
 		}
 
 		args := buildCodexArgs(&Config{Mode: "new", WorkDir: "/tmp"}, "task")
-		if !slices.Equal(args, []string{"e", "--dangerously-bypass-approvals-and-sandbox", "--skip-git-repo-check", "-C", "/tmp", "--json", "task"}) {
+		if !slices.Equal(args, []string{"exec", "--dangerously-bypass-approvals-and-sandbox", "--skip-git-repo-check", "-C", "/tmp", "--json", "task"}) {
 			t.Fatalf("unexpected codex args: %+v", args)
 		}
 		args = buildCodexArgs(&Config{Mode: "resume", SessionID: "sess"}, "target")
-		if !slices.Equal(args, []string{"e", "--dangerously-bypass-approvals-and-sandbox", "--skip-git-repo-check", "--json", "resume", "sess", "target"}) {
+		if !slices.Equal(args, []string{"exec", "--dangerously-bypass-approvals-and-sandbox", "--skip-git-repo-check", "--json", "resume", "sess", "target"}) {
 			t.Fatalf("unexpected resume args: %+v", args)
 		}
 	})
@@ -666,6 +666,34 @@ func TestExecutorRunTaskWithContext(t *testing.T) {
 		}
 		if rc == nil || rc.dir != "/tmp" {
 			t.Fatalf("expected backend to set cmd.Dir, got runner=%v dir=%q", rc, rc.dir)
+		}
+	})
+
+	t.Run("legacyClaudeInvocationSetsDir", func(t *testing.T) {
+		origCommand := backendCommand
+		origBuildArgs := buildArgsFn
+		backendCommand = "claude"
+		buildArgsFn = buildClaudeArgs
+		t.Cleanup(func() {
+			backendCommand = origCommand
+			buildArgsFn = origBuildArgs
+		})
+
+		var rc *execFakeRunner
+		newCommandRunner = func(ctx context.Context, name string, args ...string) commandRunner {
+			rc = &execFakeRunner{
+				stdout:  newReasonReadCloser(`{"type":"result","subtype":"success","session_id":"sid","is_error":false,"result":"ok"}`),
+				process: &execFakeProcess{pid: 16},
+			}
+			return rc
+		}
+
+		res := runTaskWithContext(context.Background(), TaskSpec{ID: "task-legacy", Task: "payload", WorkDir: "/tmp", Backend: "claude"}, nil, nil, false, false, 1)
+		if res.ExitCode != 0 || res.Message != "ok" {
+			t.Fatalf("unexpected result: %+v", res)
+		}
+		if rc == nil || rc.dir != "/tmp" {
+			t.Fatalf("expected legacy claude invocation to set cmd.Dir, got runner=%v dir=%q", rc, rc.dir)
 		}
 	})
 
