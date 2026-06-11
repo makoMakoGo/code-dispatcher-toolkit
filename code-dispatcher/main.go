@@ -315,110 +315,30 @@ func run() (exitCode int) {
 	logInfo(fmt.Sprintf("Timeout: %ds", timeoutSec))
 	cfg.Timeout = timeoutSec
 
-	var taskText string
-	var piped bool
-
 	if cfg.ExplicitStdin {
 		logInfo("Explicit stdin mode: reading task from stdin")
-		data, err := io.ReadAll(stdinReader)
-		if err != nil {
-			logError("Failed to read stdin: " + err.Error())
-			return 1
-		}
-		taskText = string(data)
-		if taskText == "" {
-			logError("Explicit stdin mode requires task input from stdin")
-			return 1
-		}
-		piped = !isTerminal()
-	} else {
-		pipedTask, err := readPipedTask()
-		if err != nil {
-			logError("Failed to read piped stdin: " + err.Error())
-			return 1
-		}
-		piped = pipedTask != ""
-		if piped {
-			taskText = pipedTask
-		} else {
-			taskText = cfg.Task
-		}
 	}
 
-	promptFile := defaultPromptFileForBackend(cfg.Backend)
-	if promptFile != "" {
-		prompt, err := readAgentPromptFile(promptFile)
-		if err != nil {
-			if !os.IsNotExist(err) {
-				logWarn("Failed to read prompt file: " + err.Error())
-			}
-		} else if strings.TrimSpace(prompt) != "" {
-			taskText = wrapTaskWithAgentPrompt(prompt, taskText)
-		}
+	plan, err := planSerialInvocation(cfg, backend)
+	if err != nil {
+		logError(err.Error())
+		return 1
 	}
-
-	requestedStdin := cfg.ExplicitStdin || shouldUseStdin(taskText, piped)
-	useStdin := requestedStdin
-
-	targetArg := taskText
-	if useStdin {
-		targetArg = "-"
-	}
-	backendArgs := buildArgsFn(cfg, targetArg)
 
 	// Print startup information to stderr
 	fmt.Fprintf(os.Stderr, "[%s]\n", name)
 	fmt.Fprintf(os.Stderr, "  Backend: %s\n", cfg.Backend)
-	fmt.Fprintf(os.Stderr, "  Command: %s %s\n", backendCommand, strings.Join(backendArgs, " "))
+	fmt.Fprintf(os.Stderr, "  Command: %s %s\n", plan.Invocation.Command, strings.Join(plan.Invocation.Args, " "))
 	fmt.Fprintf(os.Stderr, "  PID: %d\n", os.Getpid())
 	fmt.Fprintf(os.Stderr, "  Log: %s\n", logger.Path())
 
-	if useStdin {
-		var reasons []string
-		if piped {
-			reasons = append(reasons, "piped input")
-		}
-		if cfg.ExplicitStdin {
-			reasons = append(reasons, "explicit \"-\"")
-		}
-		if strings.Contains(taskText, "\n") {
-			reasons = append(reasons, "newline")
-		}
-		if strings.Contains(taskText, "\\") {
-			reasons = append(reasons, "backslash")
-		}
-		if strings.Contains(taskText, "\"") {
-			reasons = append(reasons, "double-quote")
-		}
-		if strings.Contains(taskText, "'") {
-			reasons = append(reasons, "single-quote")
-		}
-		if strings.Contains(taskText, "`") {
-			reasons = append(reasons, "backtick")
-		}
-		if strings.Contains(taskText, "$") {
-			reasons = append(reasons, "dollar")
-		}
-		if len(taskText) > 800 {
-			reasons = append(reasons, "length>800")
-		}
-		if len(reasons) > 0 {
-			logWarn(fmt.Sprintf("Using stdin mode for task due to: %s", strings.Join(reasons, ", ")))
-		}
+	if plan.TaskSpec.UseStdin && len(plan.Reasons) > 0 {
+		logWarn(fmt.Sprintf("Using stdin mode for task due to: %s", strings.Join(plan.Reasons, ", ")))
 	}
 
 	logInfo(fmt.Sprintf("%s running...", cfg.Backend))
 
-	taskSpec := TaskSpec{
-		Task:      taskText,
-		WorkDir:   cfg.WorkDir,
-		Mode:      cfg.Mode,
-		SessionID: cfg.SessionID,
-		Backend:   cfg.Backend,
-		UseStdin:  useStdin,
-	}
-
-	result := runTaskFn(taskSpec, false, cfg.Timeout)
+	result := runTaskFn(plan.TaskSpec, false, cfg.Timeout)
 
 	if result.ExitCode != 0 {
 		return result.ExitCode

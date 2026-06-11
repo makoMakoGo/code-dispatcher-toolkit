@@ -3857,7 +3857,7 @@ func TestRun_ExplicitStdinReadError(t *testing.T) {
 	if exitCode != 1 {
 		t.Fatalf("exit code %d, want 1", exitCode)
 	}
-	if !strings.Contains(logOutput, "Failed to read stdin: broken stdin") {
+	if !strings.Contains(logOutput, "failed to read stdin: broken stdin") {
 		t.Fatalf("log missing read error entry, got %q", logOutput)
 	}
 	// Log file is always removed after completion (new behavior)
@@ -3955,7 +3955,7 @@ func TestRun_PipedTaskReadError(t *testing.T) {
 	if exitCode != 1 {
 		t.Fatalf("exit=%d, want 1", exitCode)
 	}
-	if !strings.Contains(logOutput, "Failed to read piped stdin: read stdin: pipe failure") {
+	if !strings.Contains(logOutput, "failed to read piped stdin: read stdin: pipe failure") {
 		t.Fatalf("log missing piped read error, got %q", logOutput)
 	}
 	// Log file is always removed after completion (new behavior)
