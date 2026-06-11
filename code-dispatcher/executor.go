@@ -42,14 +42,25 @@ type processHandle interface {
 
 // realCmd implements commandRunner using exec.Cmd
 type realCmd struct {
-	cmd *exec.Cmd
+	cmd          *exec.Cmd
+	stdoutWriter *os.File
+	stderrWriter *os.File
 }
 
 func (r *realCmd) Start() error {
 	if r.cmd == nil {
 		return errors.New("command is nil")
 	}
-	return r.cmd.Start()
+	err := r.cmd.Start()
+	if r.stdoutWriter != nil {
+		_ = r.stdoutWriter.Close()
+		r.stdoutWriter = nil
+	}
+	if r.stderrWriter != nil {
+		_ = r.stderrWriter.Close()
+		r.stderrWriter = nil
+	}
+	return err
 }
 
 func (r *realCmd) Wait() error {
@@ -63,14 +74,38 @@ func (r *realCmd) StdoutPipe() (io.ReadCloser, error) {
 	if r.cmd == nil {
 		return nil, errors.New("command is nil")
 	}
-	return r.cmd.StdoutPipe()
+	if r.cmd.Stdout != nil {
+		return nil, errors.New("stdout already set")
+	}
+	if r.cmd.Process != nil {
+		return nil, errors.New("stdout pipe after process started")
+	}
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		return nil, err
+	}
+	r.cmd.Stdout = writer
+	r.stdoutWriter = writer
+	return reader, nil
 }
 
 func (r *realCmd) StderrPipe() (io.ReadCloser, error) {
 	if r.cmd == nil {
 		return nil, errors.New("command is nil")
 	}
-	return r.cmd.StderrPipe()
+	if r.cmd.Stderr != nil {
+		return nil, errors.New("stderr already set")
+	}
+	if r.cmd.Process != nil {
+		return nil, errors.New("stderr pipe after process started")
+	}
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		return nil, err
+	}
+	r.cmd.Stderr = writer
+	r.stderrWriter = writer
+	return reader, nil
 }
 
 func (r *realCmd) StdinPipe() (io.WriteCloser, error) {
