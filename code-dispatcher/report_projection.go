@@ -24,9 +24,9 @@ type ProjectedTaskResult struct {
 }
 
 func projectTaskResults(results []TaskResult) []ProjectedTaskResult {
-	projected := make([]ProjectedTaskResult, 0, len(results))
-	for _, result := range results {
-		projected = append(projected, projectTaskResult(result, defaultCoverageTarget))
+	projected := make([]ProjectedTaskResult, len(results))
+	for i, result := range results {
+		projected[i] = projectTaskResult(result, defaultCoverageTarget)
 	}
 	return projected
 }
