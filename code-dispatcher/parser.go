@@ -23,14 +23,6 @@ type EventItem struct {
 	Text interface{} `json:"text"`
 }
 
-// ClaudeEvent for Claude stream-json format
-type ClaudeEvent struct {
-	Type      string `json:"type"`
-	Subtype   string `json:"subtype,omitempty"`
-	SessionID string `json:"session_id,omitempty"`
-	Result    string `json:"result,omitempty"`
-}
-
 func parseJSONStream(r io.Reader) (message, threadID string) {
 	return parseJSONStreamWithLog(r, logWarn, logInfo)
 }
@@ -255,37 +247,6 @@ func isAuthoritativeClaudeSessionEvent(event UnifiedEvent) bool {
 		return true
 	}
 	return event.Type == "system" && event.Subtype == "init"
-}
-
-func hasKey(m map[string]json.RawMessage, key string) bool {
-	_, ok := m[key]
-	return ok
-}
-
-func discardInvalidJSON(decoder *json.Decoder, reader *bufio.Reader) (*bufio.Reader, error) {
-	var buffered bytes.Buffer
-
-	if decoder != nil {
-		if buf := decoder.Buffered(); buf != nil {
-			_, _ = buffered.ReadFrom(buf)
-		}
-	}
-
-	line, err := reader.ReadBytes('\n')
-	buffered.Write(line)
-
-	data := buffered.Bytes()
-	newline := bytes.IndexByte(data, '\n')
-	if newline == -1 {
-		return reader, err
-	}
-
-	remaining := data[newline+1:]
-	if len(remaining) == 0 {
-		return reader, err
-	}
-
-	return bufio.NewReader(io.MultiReader(bytes.NewReader(remaining), reader)), err
 }
 
 func readLineWithLimit(r *bufio.Reader, maxBytes int, previewBytes int) (line []byte, tooLong bool, err error) {

@@ -100,8 +100,6 @@ func TestResumeConversation_SupportedBackends(t *testing.T) {
 				context.Background(),
 				TaskSpec{ID: "new", Task: "hello", WorkDir: ".", Mode: "new"},
 				tt.backend,
-				nil,
-				false,
 				true,
 				5,
 			)
@@ -116,8 +114,6 @@ func TestResumeConversation_SupportedBackends(t *testing.T) {
 				context.Background(),
 				TaskSpec{ID: "resume", Task: "follow-up", WorkDir: ".", Mode: "resume", SessionID: first.SessionID},
 				tt.backend,
-				nil,
-				false,
 				true,
 				5,
 			)

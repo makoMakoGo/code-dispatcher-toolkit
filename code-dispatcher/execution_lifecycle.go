@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"os/exec"
 	"os/signal"
 	"strings"
@@ -383,37 +382,6 @@ waitLoop:
 	}
 }
 
-func forwardSignals(ctx context.Context, cmd commandRunner, logErrorFn func(string)) {
-	notify := signalNotifyFn
-	stop := signalStopFn
-	if notify == nil {
-		notify = signal.Notify
-	}
-	if stop == nil {
-		stop = signal.Stop
-	}
-
-	sigCh := make(chan os.Signal, 1)
-	notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
-
-	go func() {
-		defer stop(sigCh)
-		select {
-		case sig := <-sigCh:
-			logErrorFn(fmt.Sprintf("Received signal: %v", sig))
-			if proc := cmd.Process(); proc != nil {
-				_ = sendTermSignal(proc)
-				time.AfterFunc(time.Duration(forceKillDelay.Load())*time.Second, func() {
-					if p := cmd.Process(); p != nil {
-						_ = sendKillSignal(p)
-					}
-				})
-			}
-		case <-ctx.Done():
-		}
-	}()
-}
-
 func cancelReason(commandName string, ctx context.Context) string {
 	if ctx == nil {
 		return "Context cancelled"
@@ -485,22 +453,4 @@ func terminateCommand(cmd commandRunner) *forceKillTimer {
 	})
 
 	return &forceKillTimer{timer: timer, done: done}
-}
-
-func terminateProcess(cmd commandRunner) *time.Timer {
-	if cmd == nil {
-		return nil
-	}
-	proc := cmd.Process()
-	if proc == nil {
-		return nil
-	}
-
-	_ = sendTermSignal(proc)
-
-	return time.AfterFunc(time.Duration(forceKillDelay.Load())*time.Second, func() {
-		if p := cmd.Process(); p != nil {
-			_ = sendKillSignal(p)
-		}
-	})
 }

@@ -194,15 +194,19 @@ func TestLoggerConcurrentWritesSafe(t *testing.T) {
 	}
 }
 
-func TestLoggerTerminateProcessActive(t *testing.T) {
+func TestLoggerTerminateCommandActive(t *testing.T) {
 	cmd := exec.Command("sleep", "5")
 	if err := cmd.Start(); err != nil {
 		t.Skipf("cannot start sleep command: %v", err)
 	}
 
-	timer := terminateProcess(&realCmd{cmd: cmd})
+	// Zero delay drives the force-kill branch right after SIGTERM.
+	forceKillDelay.Store(0)
+	defer forceKillDelay.Store(5)
+
+	timer := terminateCommand(&realCmd{cmd: cmd})
 	if timer == nil {
-		t.Fatalf("terminateProcess returned nil timer for active process")
+		t.Fatalf("terminateCommand returned nil timer for active process")
 	}
 	defer timer.Stop()
 
@@ -216,18 +220,14 @@ func TestLoggerTerminateProcessActive(t *testing.T) {
 		t.Fatalf("process not terminated promptly")
 	case <-done:
 	}
-
-	// Force the timer callback to run immediately to cover the kill branch.
-	timer.Reset(0)
-	time.Sleep(10 * time.Millisecond)
 }
 
-func TestLoggerTerminateProcessNil(t *testing.T) {
-	if timer := terminateProcess(nil); timer != nil {
-		t.Fatalf("terminateProcess(nil) should return nil timer")
+func TestLoggerTerminateCommandNil(t *testing.T) {
+	if timer := terminateCommand(nil); timer != nil {
+		t.Fatalf("terminateCommand(nil) should return nil timer")
 	}
-	if timer := terminateProcess(&realCmd{cmd: &exec.Cmd{}}); timer != nil {
-		t.Fatalf("terminateProcess with nil process should return nil timer")
+	if timer := terminateCommand(&realCmd{cmd: &exec.Cmd{}}); timer != nil {
+		t.Fatalf("terminateCommand with nil process should return nil timer")
 	}
 }
 
@@ -528,7 +528,6 @@ func TestLoggerCoverageSuite(t *testing.T) {
 		{"TestExecutorSignalAndTermination", TestExecutorSignalAndTermination},
 		{"TestExecutorCancelReasonAndCloseWithReason", TestExecutorCancelReasonAndCloseWithReason},
 		{"TestExecutorForceKillTimerStop", TestExecutorForceKillTimerStop},
-		{"TestExecutorForwardSignalsDefaults", TestExecutorForwardSignalsDefaults},
 
 		{"TestBackendParseArgs_NewMode", TestBackendParseArgs_NewMode},
 		{"TestBackendParseArgs_ResumeMode", TestBackendParseArgs_ResumeMode},
@@ -567,8 +566,6 @@ func TestLoggerCoverageSuite(t *testing.T) {
 		{"TestBackendParseJSONStreamWithWarn_InvalidLine", TestBackendParseJSONStreamWithWarn_InvalidLine},
 		{"TestBackendParseJSONStream_OnMessage", TestBackendParseJSONStream_OnMessage},
 		{"TestBackendParseJSONStream_ScannerError", TestBackendParseJSONStream_ScannerError},
-		{"TestBackendDiscardInvalidJSON", TestBackendDiscardInvalidJSON},
-		{"TestBackendDiscardInvalidJSONBuffer", TestBackendDiscardInvalidJSONBuffer},
 
 		{"TestCurrentDispatcherNameFallsBackToExecutable", TestCurrentDispatcherNameFallsBackToExecutable},
 

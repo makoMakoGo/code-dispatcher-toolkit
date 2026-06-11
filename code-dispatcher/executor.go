@@ -20,7 +20,6 @@ type commandRunner interface {
 	StdoutPipe() (io.ReadCloser, error)
 	StderrPipe() (io.ReadCloser, error)
 	StdinPipe() (io.WriteCloser, error)
-	SetStderr(io.Writer)
 	SetDir(string)
 	SetEnv(env map[string]string)
 	UnsetEnv(keys []string)
@@ -107,12 +106,6 @@ func (r *realCmd) StdinPipe() (io.WriteCloser, error) {
 		return nil, errors.New("command is nil")
 	}
 	return r.cmd.StdinPipe()
-}
-
-func (r *realCmd) SetStderr(w io.Writer) {
-	if r.cmd != nil {
-		r.cmd.Stderr = w
-	}
 }
 
 func (r *realCmd) SetDir(dir string) {
@@ -328,7 +321,7 @@ func defaultRunParallelTaskFn(task TaskSpec, timeout int) TaskResult {
 		parentCtx = task.Context
 		task.Context = nil
 	}
-	return runTaskWithContext(parentCtx, task, backend, nil, false, true, timeout)
+	return runTaskWithContext(parentCtx, task, backend, true, timeout)
 }
 
 var runParallelTaskFn = defaultRunParallelTaskFn
@@ -601,15 +594,10 @@ func getStatusSymbols() (success, warning, failed string) {
 }
 
 func runTask(taskSpec TaskSpec, silent bool, timeoutSec int) TaskResult {
-	return runTaskWithContext(context.Background(), taskSpec, nil, nil, false, silent, timeoutSec)
+	return runTaskWithContext(context.Background(), taskSpec, nil, silent, timeoutSec)
 }
 
-func runBackendProcess(parentCtx context.Context, backendArgs []string, taskText string, useStdin bool, timeoutSec int) (message, threadID string, exitCode int) {
-	res := runTaskWithContext(parentCtx, TaskSpec{Task: taskText, WorkDir: defaultWorkdir, Mode: "new", UseStdin: useStdin}, nil, backendArgs, true, false, timeoutSec)
-	return res.Message, res.SessionID, res.ExitCode
-}
-
-func runTaskWithContext(parentCtx context.Context, taskSpec TaskSpec, backend Backend, customArgs []string, useCustomArgs bool, silent bool, timeoutSec int) TaskResult {
+func runTaskWithContext(parentCtx context.Context, taskSpec TaskSpec, backend Backend, silent bool, timeoutSec int) TaskResult {
 	parentCtx = effectiveTaskContext(parentCtx, taskSpec.Context)
 
 	result := TaskResult{TaskID: taskSpec.ID}
@@ -654,12 +642,9 @@ func runTaskWithContext(parentCtx context.Context, taskSpec TaskSpec, backend Ba
 	}
 
 	invocation := BackendInvocation{}
-	switch {
-	case useCustomArgs:
-		invocation = legacyBackendInvocation(cfg, commandName, customArgs)
-	case backend != nil:
+	if backend != nil {
 		invocation = backend.BuildInvocation(cfg, targetArg)
-	default:
+	} else {
 		invocation = legacyBackendInvocation(cfg, commandName, argsBuilder(cfg, targetArg))
 	}
 	if invocation.BackendName != "" {
