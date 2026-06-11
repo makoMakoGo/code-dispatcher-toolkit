@@ -103,7 +103,9 @@ func generateProjectedFinalOutputWithMode(results []ProjectedTaskResult, summary
 			coverage := sanitizeOutput(report.Coverage)
 			keyOutput := sanitizeOutput(report.KeyOutput)
 			logPath := sanitizeOutput(res.LogPath)
-			filesChanged := sanitizeOutput(strings.Join(report.FilesChanged, ", "))
+			filesChanged := func() string {
+				return sanitizeOutput(strings.Join(report.FilesChanged, ", "))
+			}
 
 			target := report.CoverageTarget
 			if target <= 0 {
@@ -124,7 +126,7 @@ func generateProjectedFinalOutputWithMode(results []ProjectedTaskResult, summary
 					sb.WriteString(fmt.Sprintf("Did: %s\n", keyOutput))
 				}
 				if len(report.FilesChanged) > 0 {
-					sb.WriteString(fmt.Sprintf("Files: %s\n", filesChanged))
+					sb.WriteString(fmt.Sprintf("Files: %s\n", filesChanged()))
 				}
 				if report.TestsPassed > 0 {
 					sb.WriteString(fmt.Sprintf("Tests: %d passed\n", report.TestsPassed))
@@ -140,7 +142,7 @@ func generateProjectedFinalOutputWithMode(results []ProjectedTaskResult, summary
 					sb.WriteString(fmt.Sprintf("Did: %s\n", keyOutput))
 				}
 				if len(report.FilesChanged) > 0 {
-					sb.WriteString(fmt.Sprintf("Files: %s\n", filesChanged))
+					sb.WriteString(fmt.Sprintf("Files: %s\n", filesChanged()))
 				}
 				if report.TestsPassed > 0 {
 					sb.WriteString(fmt.Sprintf("Tests: %d passed\n", report.TestsPassed))

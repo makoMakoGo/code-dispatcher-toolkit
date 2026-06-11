@@ -69,6 +69,25 @@ func TestProjectTaskResultDoesNotGuessWithoutReport(t *testing.T) {
 	}
 }
 
+func TestGenerateFinalOutputDoesNotInventReportFieldsWithoutStructuredReport(t *testing.T) {
+	summary := generateFinalOutput([]TaskResult{{
+		TaskID:   "plain",
+		ExitCode: 0,
+		Message:  "done\nCoverage: 88%\nFiles: guessed.go\nTests: 4 passed, 0 failed",
+	}})
+
+	for _, want := range []string{"1 tasks | 1 passed | 0 failed", "### plain"} {
+		if !strings.Contains(summary, want) {
+			t.Fatalf("summary missing %q:\n%s", want, summary)
+		}
+	}
+	for _, unwanted := range []string{"Did:", "Files:", "Tests:", "Coverage:"} {
+		if strings.Contains(summary, unwanted) {
+			t.Fatalf("summary invented %q without structured report:\n%s", unwanted, summary)
+		}
+	}
+}
+
 func TestGenerateProjectedFinalOutputWithMode(t *testing.T) {
 	results := []ProjectedTaskResult{
 		projectTaskResult(TaskResult{TaskID: "ok", ExitCode: 0, Message: structuredReportMessageForTest("92%", "a.go", "3 passed, 0 failed", "done")}, defaultCoverageTarget),
