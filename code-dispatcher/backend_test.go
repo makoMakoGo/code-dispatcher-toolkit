@@ -162,11 +162,29 @@ func TestBackendInvocationPolicy(t *testing.T) {
 		}
 	})
 
-	t.Run("claude resume leaves workdir empty", func(t *testing.T) {
+	t.Run("claude resume keeps explicit workdir", func(t *testing.T) {
+		// Claude stores sessions per project directory; resume only finds the
+		// conversation when the process runs in the original task workdir.
 		cfg := &Config{Mode: "resume", SessionID: "sid", WorkDir: "/repo", Backend: "claude"}
+		invocation := ClaudeBackend{}.BuildInvocation(cfg, "task")
+		if invocation.WorkDir != "/repo" {
+			t.Fatalf("resume WorkDir = %q, want /repo", invocation.WorkDir)
+		}
+	})
+
+	t.Run("claude resume without workdir stays empty", func(t *testing.T) {
+		cfg := &Config{Mode: "resume", SessionID: "sid", WorkDir: "  ", Backend: "claude"}
 		invocation := ClaudeBackend{}.BuildInvocation(cfg, "task")
 		if invocation.WorkDir != "" {
 			t.Fatalf("resume WorkDir = %q, want empty", invocation.WorkDir)
+		}
+	})
+
+	t.Run("legacy claude resume keeps explicit workdir", func(t *testing.T) {
+		cfg := &Config{Mode: "resume", SessionID: "sid", WorkDir: "/repo", Backend: "claude"}
+		invocation := legacyBackendInvocation(cfg, "claude", []string{"-p"})
+		if invocation.WorkDir != "/repo" {
+			t.Fatalf("legacy resume WorkDir = %q, want /repo", invocation.WorkDir)
 		}
 	})
 }
