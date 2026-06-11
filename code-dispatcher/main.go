@@ -414,6 +414,7 @@ func run() (exitCode int) {
 		WorkDir:   cfg.WorkDir,
 		Mode:      cfg.Mode,
 		SessionID: cfg.SessionID,
+		Backend:   cfg.Backend,
 		UseStdin:  useStdin,
 	}
 

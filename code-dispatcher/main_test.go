@@ -1657,8 +1657,10 @@ func TestRun_DefaultPromptInjectionPrefixesTask(t *testing.T) {
 			}
 
 			var gotTask string
+			var gotBackend string
 			runTaskFn = func(task TaskSpec, silent bool, timeout int) TaskResult {
 				gotTask = task.Task
+				gotBackend = task.Backend
 				return TaskResult{ExitCode: 0, Message: "ok"}
 			}
 
@@ -1692,6 +1694,9 @@ func TestRun_DefaultPromptInjectionPrefixesTask(t *testing.T) {
 			}
 			if gotTask != wantTask {
 				t.Fatalf("task mismatch:\n got=%q\nwant=%q", gotTask, wantTask)
+			}
+			if gotBackend != tt.backend {
+				t.Fatalf("backend = %q, want %q", gotBackend, tt.backend)
 			}
 		})
 	}

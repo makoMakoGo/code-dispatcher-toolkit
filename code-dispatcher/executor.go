@@ -627,11 +627,11 @@ func runTaskWithContext(parentCtx context.Context, taskSpec TaskSpec, backend Ba
 	invocation := BackendInvocation{}
 	switch {
 	case useCustomArgs:
-		invocation = legacyBackendInvocation(cfg.Backend, commandName, customArgs)
+		invocation = legacyBackendInvocation(cfg, commandName, customArgs)
 	case backend != nil:
 		invocation = backend.BuildInvocation(cfg, targetArg)
 	default:
-		invocation = legacyBackendInvocation(cfg.Backend, commandName, argsBuilder(cfg, targetArg))
+		invocation = legacyBackendInvocation(cfg, commandName, argsBuilder(cfg, targetArg))
 	}
 	if invocation.BackendName != "" {
 		cfg.Backend = invocation.BackendName

@@ -73,7 +73,7 @@ func (b ClaudeBackend) BuildInvocation(cfg *Config, targetArg string) BackendInv
 	}
 }
 
-func runtimeEnvForBackend(backendName string) map[string]string {
+func runtimeEnvForInvocation() map[string]string {
 	return runtimeInjectedEnvForInvocation()
 }
 
@@ -111,21 +111,25 @@ func parseStreamForBackend(backendName string) BackendStreamParser {
 	}
 }
 
-func legacyBackendInvocation(backendName string, commandName string, args []string) BackendInvocation {
+func legacyBackendInvocation(cfg *Config, commandName string, args []string) BackendInvocation {
+	backendName := ""
+	if cfg != nil {
+		backendName = cfg.Backend
+	}
 	name := normalizeBackendName(backendName)
 	invocation := BackendInvocation{
 		BackendName:  name,
 		Command:      commandName,
 		Args:         args,
-		Env:          runtimeEnvForBackend(name),
+		Env:          runtimeEnvForInvocation(),
 		UnsetEnvKeys: runtimeUnsetEnvKeysForBackend(name),
 		ParseStream:  parseStreamForBackend(name),
 	}
 	if name == "codex" {
 		invocation.StderrFilterPatterns = codexNoisePatterns
 	}
-	if name == "claude" {
-		invocation.UnsetEnvKeys = []string{"CLAUDECODE"}
+	if name == "claude" && cfg != nil && cfg.Mode != "resume" && strings.TrimSpace(cfg.WorkDir) != "" {
+		invocation.WorkDir = cfg.WorkDir
 	}
 	return invocation
 }
