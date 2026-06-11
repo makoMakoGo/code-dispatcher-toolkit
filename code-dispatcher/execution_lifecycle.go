@@ -455,11 +455,13 @@ func (t *forceKillTimer) Stop() {
 	if t == nil || t.timer == nil {
 		return
 	}
+	if !t.stopped.CompareAndSwap(false, true) {
+		return
+	}
 	if !t.timer.Stop() {
 		<-t.done
 		t.drained.Store(true)
 	}
-	t.stopped.Store(true)
 }
 
 func terminateCommand(cmd commandRunner) *forceKillTimer {

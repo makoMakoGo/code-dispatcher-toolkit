@@ -1503,11 +1503,22 @@ func TestExecutorForceKillTimerStop(t *testing.T) {
 	done := make(chan struct{}, 1)
 	ft := &forceKillTimer{timer: time.AfterFunc(50*time.Millisecond, func() { done <- struct{}{} }), done: done}
 	ft.Stop()
+	ft.Stop()
 
 	done2 := make(chan struct{}, 1)
 	ft2 := &forceKillTimer{timer: time.AfterFunc(0, func() { done2 <- struct{}{} }), done: done2}
 	time.Sleep(10 * time.Millisecond)
 	ft2.Stop()
+	stoppedAgain := make(chan struct{})
+	go func() {
+		ft2.Stop()
+		close(stoppedAgain)
+	}()
+	select {
+	case <-stoppedAgain:
+	case <-time.After(1 * time.Second):
+		t.Fatalf("second forceKillTimer.Stop blocked after timer fired")
+	}
 
 	var nilTimer *forceKillTimer
 	nilTimer.Stop()
