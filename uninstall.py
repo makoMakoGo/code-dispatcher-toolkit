@@ -7,6 +7,7 @@ Removes only the files installed by ./install.py and leaves unrelated user files
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 
 import runtime_assets
@@ -64,10 +65,15 @@ def main(argv: list[str] | None = None) -> int:
             print("Aborted.")
             return 0
 
-    targets = [
-        runtime_assets.env_install_path(install_dir),
-        runtime_assets.binary_path(install_dir),
-    ]
+    try:
+        targets = [
+            runtime_assets.env_install_path(install_dir),
+            runtime_assets.binary_path(install_dir),
+        ]
+        prompt_files = runtime_assets.uninstall_prompt_files()
+    except RuntimeError as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        return 1
 
     removed = 0
 
@@ -77,7 +83,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Removed: {path}")
 
     prompts_dir = install_dir / "prompts"
-    for prompt_file in runtime_assets.uninstall_prompt_files():
+    for prompt_file in prompt_files:
         path = prompts_dir / prompt_file
         if _unlink(path):
             removed += 1

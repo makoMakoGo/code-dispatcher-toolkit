@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 import json
 import os
 import platform
@@ -47,7 +48,15 @@ def _validate_binary_names(data: dict[str, Any]) -> None:
             )
 
 
-MANIFEST = _load_manifest()
+@functools.lru_cache(maxsize=1)
+def _manifest() -> dict[str, Any]:
+    """Load the manifest on first use so importing this module never raises.
+
+    Lazy loading keeps `install.py --help` / `uninstall.py --help` working and
+    lets callers surface RuntimeError through their own error handling instead
+    of dying with an import-time traceback.
+    """
+    return _load_manifest()
 
 
 def _mapping(value: Any, label: str) -> dict[str, Any]:
@@ -69,15 +78,15 @@ def _string(value: Any, label: str) -> str:
 
 
 def runtime_config() -> dict[str, Any]:
-    return _mapping(MANIFEST.get("runtime_config"), "runtime_config")
+    return _mapping(_manifest().get("runtime_config"), "runtime_config")
 
 
 def binary() -> dict[str, Any]:
-    return _mapping(MANIFEST.get("binary"), "binary")
+    return _mapping(_manifest().get("binary"), "binary")
 
 
 def backend_assets() -> list[dict[str, Any]]:
-    backends = _list(MANIFEST.get("backends"), "backends")
+    backends = _list(_manifest().get("backends"), "backends")
     return [_mapping(backend, f"backends[{idx}]") for idx, backend in enumerate(backends)]
 
 
@@ -116,7 +125,7 @@ def prompt_install_files() -> list[str]:
 
 
 def legacy_prompt_files() -> list[str]:
-    legacy = _mapping(MANIFEST.get("legacy_uninstall"), "legacy_uninstall")
+    legacy = _mapping(_manifest().get("legacy_uninstall"), "legacy_uninstall")
     files = _list(legacy.get("prompt_files"), "legacy_uninstall.prompt_files")
     return [_string(file, "legacy_uninstall.prompt_files[]") for file in files]
 

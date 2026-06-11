@@ -221,8 +221,8 @@ def main(argv: list[str] | None = None) -> int:
 
     _ensure_dir(install_dir)
 
-    _install_prompts(install_dir, force=args.force)
     try:
+        _install_prompts(install_dir, force=args.force)
         _install_env_template(install_dir, force=args.force)
     except RuntimeError as e:
         print(f"ERROR: {e}", file=sys.stderr)

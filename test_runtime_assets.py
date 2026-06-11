@@ -69,5 +69,48 @@ class RuntimeAssetsTests(unittest.TestCase):
             self.assertEqual(install._get_artifact_name(), "code-dispatcher-linux-amd64")
 
 
+class LazyManifestTests(unittest.TestCase):
+    def setUp(self) -> None:
+        runtime_assets._manifest.cache_clear()
+        self.addCleanup(runtime_assets._manifest.cache_clear)
+
+    def test_accessors_raise_runtime_error_when_manifest_missing(self) -> None:
+        missing = Path(tempfile.gettempdir()) / "code-dispatcher-no-such-manifest.json"
+        with mock.patch.object(runtime_assets, "MANIFEST_PATH", missing):
+            with self.assertRaisesRegex(RuntimeError, "runtime asset manifest not found"):
+                runtime_assets.prompt_install_files()
+
+    def test_help_does_not_load_manifest(self) -> None:
+        with mock.patch.object(
+            runtime_assets, "_load_manifest", side_effect=AssertionError("manifest loaded during --help")
+        ):
+            for module in (install, uninstall):
+                with self.subTest(module=module.__name__):
+                    with contextlib.redirect_stdout(io.StringIO()):
+                        with self.assertRaises(SystemExit) as ctx:
+                            module.main(["--help"])
+                    self.assertEqual(ctx.exception.code, 0)
+
+    def test_install_reports_clean_error_when_manifest_missing(self) -> None:
+        missing = Path(tempfile.gettempdir()) / "code-dispatcher-no-such-manifest.json"
+        with tempfile.TemporaryDirectory() as raw_dir:
+            with mock.patch.object(runtime_assets, "MANIFEST_PATH", missing):
+                stderr = io.StringIO()
+                with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(stderr):
+                    rc = install.main(["--install-dir", raw_dir, "--skip-dispatcher"])
+        self.assertEqual(rc, 1)
+        self.assertIn("ERROR: runtime asset manifest not found", stderr.getvalue())
+
+    def test_uninstall_reports_clean_error_when_manifest_missing(self) -> None:
+        missing = Path(tempfile.gettempdir()) / "code-dispatcher-no-such-manifest.json"
+        with tempfile.TemporaryDirectory() as raw_dir:
+            with mock.patch.object(runtime_assets, "MANIFEST_PATH", missing):
+                stderr = io.StringIO()
+                with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(stderr):
+                    rc = uninstall.main(["--install-dir", raw_dir, "--yes"])
+        self.assertEqual(rc, 1)
+        self.assertIn("ERROR: runtime asset manifest not found", stderr.getvalue())
+
+
 if __name__ == "__main__":
     unittest.main()
