@@ -31,7 +31,7 @@ func TestProjectTaskResultUsesExplicitReportOnly(t *testing.T) {
 		Message: "noise fallback.go 12%\n" + structuredReportMessageForTest("92%", "structured.go", "7 passed, 0 failed", "Structured report used"),
 	}
 
-	projected := projectTaskResult(result, defaultCoverageTarget)
+	projected := projectTaskResult(result)
 
 	if !projected.Report.Found {
 		t.Fatalf("expected report projection to be found")
@@ -59,7 +59,7 @@ func TestProjectTaskResultDoesNotGuessWithoutReport(t *testing.T) {
 		Message: "Summary: Should not be extracted\nCoverage: 88%\nFiles: guessed.go\nTests: 4 passed, 0 failed",
 	}
 
-	projected := projectTaskResult(result, defaultCoverageTarget)
+	projected := projectTaskResult(result)
 
 	if projected.Report.Found {
 		t.Fatalf("unexpected report projection: %#v", projected.Report)
@@ -90,8 +90,8 @@ func TestGenerateFinalOutputDoesNotInventReportFieldsWithoutStructuredReport(t *
 
 func TestGenerateProjectedFinalOutputWithMode(t *testing.T) {
 	results := []ProjectedTaskResult{
-		projectTaskResult(TaskResult{TaskID: "ok", ExitCode: 0, Message: structuredReportMessageForTest("92%", "a.go", "3 passed, 0 failed", "done")}, defaultCoverageTarget),
-		projectTaskResult(TaskResult{TaskID: "warn", ExitCode: 0, Message: structuredReportMessageForTest("80%", "b.go", "2 passed, 0 failed", "needs coverage")}, defaultCoverageTarget),
+		projectTaskResult(TaskResult{TaskID: "ok", ExitCode: 0, Message: structuredReportMessageForTest("92%", "a.go", "3 passed, 0 failed", "done")}),
+		projectTaskResult(TaskResult{TaskID: "warn", ExitCode: 0, Message: structuredReportMessageForTest("80%", "b.go", "2 passed, 0 failed", "needs coverage")}),
 		{Result: TaskResult{TaskID: "bad", ExitCode: 2, Error: "boom", Message: "panic: bad"}},
 	}
 
