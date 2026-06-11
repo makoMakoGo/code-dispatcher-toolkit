@@ -272,18 +272,6 @@ func min(a, b int) int {
 	return b
 }
 
-func hello() string {
-	return "hello world"
-}
-
-func greet(name string) string {
-	return "hello " + name
-}
-
-func farewell(name string) string {
-	return "goodbye " + name
-}
-
 const (
 	structuredReportStartMarker = "---CODE-DISPATCHER-REPORT---"
 	structuredReportEndMarker   = "---END-CODE-DISPATCHER-REPORT---"

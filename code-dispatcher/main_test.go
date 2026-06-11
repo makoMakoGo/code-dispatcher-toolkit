@@ -4183,30 +4183,6 @@ func TestBackendParseJSONStream_CoverageSuite(t *testing.T) {
 	}
 }
 
-func TestRunHello(t *testing.T) {
-	if got := hello(); got != "hello world" {
-		t.Fatalf("hello() = %q, want %q", got, "hello world")
-	}
-}
-
-func TestRunGreet(t *testing.T) {
-	if got := greet("Linus"); got != "hello Linus" {
-		t.Fatalf("greet() = %q, want %q", got, "hello Linus")
-	}
-}
-
-func TestRunFarewell(t *testing.T) {
-	if got := farewell("Linus"); got != "goodbye Linus" {
-		t.Fatalf("farewell() = %q, want %q", got, "goodbye Linus")
-	}
-}
-
-func TestRunFarewellEmpty(t *testing.T) {
-	if got := farewell(""); got != "goodbye " {
-		t.Fatalf("farewell(\"\") = %q, want %q", got, "goodbye ")
-	}
-}
-
 func TestRunTailBuffer(t *testing.T) {
 	tb := &tailBuffer{limit: 5}
 	if n, err := tb.Write([]byte("abcd")); err != nil || n != 4 {
