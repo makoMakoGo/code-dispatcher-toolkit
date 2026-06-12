@@ -2007,6 +2007,46 @@ func TestBackendParseJSONStream_ClaudeResumeIgnoresHookSessionID(t *testing.T) {
 	}
 }
 
+func TestBackendParseJSONStream_CodexTurnFailedSignalsComplete(t *testing.T) {
+	input := `{"type":"thread.started","thread_id":"t-fail"}
+{"type":"turn.failed"}`
+
+	completed := false
+	_, threadID := parseJSONStreamInternal(
+		strings.NewReader(input),
+		func(string) {}, func(string) {},
+		func() {}, func() { completed = true },
+	)
+
+	if !completed {
+		t.Fatal("turn.failed should signal stream completion")
+	}
+	if threadID != "t-fail" {
+		t.Fatalf("threadID=%q, want %q", threadID, "t-fail")
+	}
+}
+
+func TestBackendParseJSONStream_ErrorEventLogsWarning(t *testing.T) {
+	input := `{"type":"error","message":"Reconnecting... 2/5 (request timed out)"}`
+
+	var warns []string
+	parseJSONStreamInternal(
+		strings.NewReader(input),
+		func(msg string) { warns = append(warns, msg) }, func(string) {},
+		nil, nil,
+	)
+
+	found := false
+	for _, w := range warns {
+		if strings.Contains(w, "Reconnecting... 2/5") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected a warning carrying the backend error message, got %v", warns)
+	}
+}
+
 func TestBackendParseJSONStream_ClaudeEvents_ItemDoesNotForceCodex(t *testing.T) {
 	tests := []struct {
 		name  string

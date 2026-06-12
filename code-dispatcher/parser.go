@@ -55,6 +55,9 @@ type UnifiedEvent struct {
 	Subtype   string `json:"subtype,omitempty"`
 	SessionID string `json:"session_id,omitempty"`
 	Result    string `json:"result,omitempty"`
+
+	// Error events ({"type":"error"}) from any backend
+	Message string `json:"message,omitempty"`
 }
 
 // ItemContent represents the parsed item.text field for Codex events
@@ -136,7 +139,7 @@ func parseJSONStreamInternalWithHooks(r io.Reader, warnFn func(string), infoFn f
 			}
 		}
 		// Codex-specific event types without thread_id or item
-		if !isCodex && (event.Type == "turn.started" || event.Type == "turn.completed") {
+		if !isCodex && (event.Type == "turn.started" || event.Type == "turn.completed" || event.Type == "turn.failed") {
 			isCodex = true
 		}
 		isClaude := event.Subtype != "" || event.Result != ""
@@ -171,6 +174,13 @@ func parseJSONStreamInternalWithHooks(r io.Reader, warnFn func(string), infoFn f
 
 			case "turn.completed":
 				infoFn("turn.completed event")
+				notifyComplete()
+
+			case "turn.failed":
+				// A failed turn still terminates the stream; signal completion so
+				// the lifecycle stops waiting for output. The process exit code
+				// carries the failure.
+				infoFn("turn.failed event")
 				notifyComplete()
 
 			case "item.completed":
@@ -220,6 +230,14 @@ func parseJSONStreamInternalWithHooks(r io.Reader, warnFn func(string), infoFn f
 			if event.Type == "result" {
 				notifyComplete()
 			}
+			continue
+		}
+
+		// Backend-reported error events (e.g. codex {"type":"error","message":...}
+		// during connectivity failures) carry no thread/item markers; surface them
+		// in the log instead of dropping them silently.
+		if event.Type == "error" {
+			warnFn(fmt.Sprintf("Backend error event #%d: %s", totalEvents, event.Message))
 			continue
 		}
 
