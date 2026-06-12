@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -47,7 +48,7 @@ func TestPlanSerialInvocationExplicitStdin(t *testing.T) {
 	if plan.TaskSpec.Task != "stdin task" || !plan.TaskSpec.UseStdin {
 		t.Fatalf("TaskSpec = %+v", plan.TaskSpec)
 	}
-	if !hasSerialReason(plan.Reasons, `explicit "-"`) {
+	if !slices.Contains(plan.Reasons, `explicit "-"`) {
 		t.Fatalf("Reasons = %v, want explicit stdin reason", plan.Reasons)
 	}
 	if got := plan.Invocation.Args[len(plan.Invocation.Args)-1]; got != "-" {
@@ -70,7 +71,7 @@ func TestPlanSerialInvocationPipedInput(t *testing.T) {
 	if plan.TaskSpec.Task != "piped task" || !plan.TaskSpec.UseStdin {
 		t.Fatalf("TaskSpec = %+v", plan.TaskSpec)
 	}
-	if !hasSerialReason(plan.Reasons, "piped input") {
+	if !slices.Contains(plan.Reasons, "piped input") {
 		t.Fatalf("Reasons = %v, want piped input reason", plan.Reasons)
 	}
 	if got := plan.Invocation.Args[len(plan.Invocation.Args)-1]; got != "-" {
@@ -104,14 +105,7 @@ func TestPlanSerialInvocationInjectsDefaultPrompt(t *testing.T) {
 	stdinReader = strings.NewReader("")
 	isTerminalFn = func() bool { return true }
 
-	home := t.TempDir()
-	t.Setenv("HOME", home)
-	t.Setenv("USERPROFILE", home)
-
-	promptPath := filepath.Join(home, ".code-dispatcher", "prompts", "codex-prompt.md")
-	if err := os.MkdirAll(filepath.Dir(promptPath), 0o755); err != nil {
-		t.Fatalf("MkdirAll: %v", err)
-	}
+	promptPath := filepath.Join(createPromptBaseForTest(t), "codex-prompt.md")
 	if err := os.WriteFile(promptPath, []byte("PROMPT\n"), 0o644); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
@@ -129,7 +123,7 @@ func TestPlanSerialInvocationInjectsDefaultPrompt(t *testing.T) {
 	if !plan.TaskSpec.UseStdin {
 		t.Fatalf("prompt-wrapped task should use stdin")
 	}
-	if !hasSerialReason(plan.Reasons, "newline") {
+	if !slices.Contains(plan.Reasons, "newline") {
 		t.Fatalf("Reasons = %v, want newline reason from wrapped prompt", plan.Reasons)
 	}
 	if got := plan.Invocation.Args[len(plan.Invocation.Args)-1]; got != "-" {
@@ -177,15 +171,6 @@ func TestSerialStdinReasons(t *testing.T) {
 			}
 		})
 	}
-}
-
-func hasSerialReason(reasons []string, want string) bool {
-	for _, reason := range reasons {
-		if reason == want {
-			return true
-		}
-	}
-	return false
 }
 
 func useEmptyPromptHome(t *testing.T) {

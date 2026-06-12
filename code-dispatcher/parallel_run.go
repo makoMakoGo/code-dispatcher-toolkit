@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 )
 
@@ -14,7 +15,7 @@ type parallelRunOutcome struct {
 }
 
 func runParallelInvocation(dispatcherName string, args []string) parallelRunOutcome {
-	if !hasParallelFlag(args) {
+	if !slices.Contains(args, "--parallel") {
 		return parallelRunOutcome{}
 	}
 
@@ -108,15 +109,6 @@ func runParallelInvocation(dispatcherName string, args []string) parallelRunOutc
 		ExitCode: parallelExitCode(results),
 		Stdout:   output + "\n",
 	}
-}
-
-func hasParallelFlag(args []string) bool {
-	for _, arg := range args {
-		if arg == "--parallel" {
-			return true
-		}
-	}
-	return false
 }
 
 func parallelErrorOutcome(msg string) parallelRunOutcome {
