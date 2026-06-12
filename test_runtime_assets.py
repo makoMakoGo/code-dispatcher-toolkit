@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import io
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -13,6 +14,19 @@ import uninstall
 
 
 class RuntimeAssetsTests(unittest.TestCase):
+    def test_build_script_produces_manifest_release_assets(self) -> None:
+        """scripts/build-dist.sh is the producer; binary.release_assets is the
+        contract install.py downloads by. Pin them together so renaming an
+        asset in one place fails CI instead of 404ing at install time."""
+        script = (runtime_assets.PROJECT_ROOT / "scripts" / "build-dist.sh").read_text(encoding="utf-8")
+        built = set(re.findall(r"\$OUT_DIR/(code-dispatcher-[\w.+-]+)", script))
+        declared = {
+            runtime_assets._string(asset.get("asset"), "release_asset.asset")
+            for asset in runtime_assets._list(
+                runtime_assets.binary().get("release_assets"), "binary.release_assets"
+            )
+        }
+        self.assertEqual(built, declared)
     def test_prompt_assets_are_shared_by_installer_and_uninstaller(self) -> None:
         self.assertEqual(
             runtime_assets.prompt_install_files(),
