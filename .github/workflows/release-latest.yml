@@ -40,15 +40,13 @@ jobs:
       - name: Generate checksums
         run: |
           cd dist
-          sha256sum code-dispatcher-linux-amd64 code-dispatcher-darwin-arm64 code-dispatcher-windows-amd64.exe > SHA256SUMS
+          sha256sum code-dispatcher-* > SHA256SUMS
 
       - name: Generate artifact attestations
         uses: actions/attest@v4
         with:
           subject-path: |
-            dist/code-dispatcher-linux-amd64
-            dist/code-dispatcher-darwin-arm64
-            dist/code-dispatcher-windows-amd64.exe
+            dist/code-dispatcher-*
             dist/SHA256SUMS
 
       - name: Force-update latest tag to current commit
@@ -66,9 +64,7 @@ jobs:
 
           if gh release view latest >/dev/null 2>&1; then
             gh release upload latest \
-              dist/code-dispatcher-linux-amd64 \
-              dist/code-dispatcher-darwin-arm64 \
-              dist/code-dispatcher-windows-amd64.exe \
+              dist/code-dispatcher-* \
               dist/SHA256SUMS \
               --clobber
             gh release edit latest \
@@ -77,9 +73,7 @@ jobs:
               --latest
           else
             gh release create latest \
-              dist/code-dispatcher-linux-amd64 \
-              dist/code-dispatcher-darwin-arm64 \
-              dist/code-dispatcher-windows-amd64.exe \
+              dist/code-dispatcher-* \
               dist/SHA256SUMS \
               --title "code-dispatcher latest" \
               --notes "Rolling latest build from main commit ${GITHUB_SHA}" \
