@@ -107,11 +107,12 @@ func runtimeInjectedEnvForInvocation() map[string]string {
 // registry backend so it lives in exactly one place; command and args are then
 // overridden with the caller-provided values.
 func legacyBackendInvocation(cfg *Config, commandName string, args []string) BackendInvocation {
-	backendName := ""
-	if cfg != nil {
-		backendName = cfg.Backend
+	if cfg == nil {
+		// selectBackend resolves an empty name to the default backend, whose
+		// BuildInvocation must never see a nil config (buildCodexArgs panics).
+		cfg = &Config{}
 	}
-	name := normalizeBackendName(backendName)
+	name := normalizeBackendName(cfg.Backend)
 	backend, err := selectBackendFn(name)
 	if err != nil {
 		// Unknown backend: keep a generic invocation without backend policy.
