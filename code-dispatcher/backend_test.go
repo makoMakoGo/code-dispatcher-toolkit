@@ -202,6 +202,22 @@ func TestBackendInvocationPolicy(t *testing.T) {
 		}
 	})
 
+	t.Run("legacy nil config resolves default backend without panicking", func(t *testing.T) {
+		// Empty backend name falls back to the default backend in selectBackend,
+		// whose BuildInvocation must not receive a nil config (buildCodexArgs
+		// panics on nil).
+		invocation := legacyBackendInvocation(nil, "codex-cmd", []string{"-x"})
+		if invocation.BackendName != "codex" {
+			t.Fatalf("BackendName = %q, want codex (default backend)", invocation.BackendName)
+		}
+		if invocation.Command != "codex-cmd" {
+			t.Fatalf("Command = %q, want codex-cmd", invocation.Command)
+		}
+		if !reflect.DeepEqual(invocation.Args, []string{"-x"}) {
+			t.Fatalf("Args = %v, want injected args", invocation.Args)
+		}
+	})
+
 	t.Run("legacy unknown backend falls back to generic invocation", func(t *testing.T) {
 		cfg := &Config{Mode: "new", WorkDir: "/repo", Backend: "mystery"}
 		invocation := legacyBackendInvocation(cfg, "mystery-cmd", []string{"-x"})
