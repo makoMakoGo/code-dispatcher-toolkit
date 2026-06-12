@@ -33,9 +33,6 @@ func TestProjectTaskResultUsesExplicitReportOnly(t *testing.T) {
 
 	projected := projectTaskResult(result)
 
-	if !projected.Report.Found {
-		t.Fatalf("expected report projection to be found")
-	}
 	if projected.Report.Coverage != "92%" {
 		t.Fatalf("Coverage = %q", projected.Report.Coverage)
 	}
@@ -61,11 +58,11 @@ func TestProjectTaskResultDoesNotGuessWithoutReport(t *testing.T) {
 
 	projected := projectTaskResult(result)
 
-	if projected.Report.Found {
-		t.Fatalf("unexpected report projection: %#v", projected.Report)
-	}
 	if projected.Report.Coverage != "" || len(projected.Report.FilesChanged) != 0 || projected.Report.KeyOutput != "" {
 		t.Fatalf("projection invented structured facts: %#v", projected.Report)
+	}
+	if projected.Report.TestsPassed != 0 || projected.Report.TestsFailed != 0 {
+		t.Fatalf("projection invented test counts: %#v", projected.Report)
 	}
 }
 

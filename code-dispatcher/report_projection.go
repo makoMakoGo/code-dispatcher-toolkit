@@ -8,7 +8,6 @@ import (
 const reportProjectionSummaryMaxLen = 150
 
 type TaskReportProjection struct {
-	Found          bool
 	Coverage       string
 	CoverageNum    float64
 	CoverageTarget float64
@@ -40,7 +39,6 @@ func projectTaskResults(results []TaskResult) []ProjectedTaskResult {
 func projectTaskResult(result TaskResult) ProjectedTaskResult {
 	projection := TaskReportProjection{CoverageTarget: defaultCoverageTarget}
 	if report, found := extractStructuredReport(result.Message, reportProjectionSummaryMaxLen); found {
-		projection.Found = true
 		projection.Coverage = report.Coverage
 		projection.CoverageNum = extractCoverageNum(report.Coverage)
 		projection.FilesChanged = report.FilesChanged
@@ -82,14 +80,15 @@ func generateProjectedFinalOutputWithMode(results []ProjectedTaskResult, summary
 
 	reportCoverageTarget := projectedCoverageTarget(results)
 
+	statuses := make([]projectedTaskStatus, len(results))
 	success := 0
 	failed := 0
 	belowTarget := 0
-	for _, projected := range results {
-		status := statusForProjectedTask(projected, reportCoverageTarget)
-		if status.success {
+	for i, projected := range results {
+		statuses[i] = statusForProjectedTask(projected, reportCoverageTarget)
+		if statuses[i].success {
 			success++
-			if status.belowTarget {
+			if statuses[i].belowTarget {
 				belowTarget++
 			}
 		} else {
@@ -107,18 +106,16 @@ func generateProjectedFinalOutputWithMode(results []ProjectedTaskResult, summary
 
 		sb.WriteString("## Task Results\n")
 
-		for _, projected := range results {
+		for i, projected := range results {
 			res := projected.Result
 			report := projected.Report
 			taskID := sanitizeOutput(res.TaskID)
 			coverage := sanitizeOutput(report.Coverage)
 			keyOutput := sanitizeOutput(report.KeyOutput)
 			logPath := sanitizeOutput(res.LogPath)
-			filesChanged := func() string {
-				return sanitizeOutput(strings.Join(report.FilesChanged, ", "))
-			}
+			filesChanged := sanitizeOutput(strings.Join(report.FilesChanged, ", "))
 
-			status := statusForProjectedTask(projected, reportCoverageTarget)
+			status := statuses[i]
 
 			if status.success && !status.belowTarget {
 				sb.WriteString(fmt.Sprintf("\n### %s %s", taskID, successSymbol))
@@ -131,7 +128,7 @@ func generateProjectedFinalOutputWithMode(results []ProjectedTaskResult, summary
 					sb.WriteString(fmt.Sprintf("Did: %s\n", keyOutput))
 				}
 				if len(report.FilesChanged) > 0 {
-					sb.WriteString(fmt.Sprintf("Files: %s\n", filesChanged()))
+					sb.WriteString(fmt.Sprintf("Files: %s\n", filesChanged))
 				}
 				if report.TestsPassed > 0 {
 					sb.WriteString(fmt.Sprintf("Tests: %d passed\n", report.TestsPassed))
@@ -147,7 +144,7 @@ func generateProjectedFinalOutputWithMode(results []ProjectedTaskResult, summary
 					sb.WriteString(fmt.Sprintf("Did: %s\n", keyOutput))
 				}
 				if len(report.FilesChanged) > 0 {
-					sb.WriteString(fmt.Sprintf("Files: %s\n", filesChanged()))
+					sb.WriteString(fmt.Sprintf("Files: %s\n", filesChanged))
 				}
 				if report.TestsPassed > 0 {
 					sb.WriteString(fmt.Sprintf("Tests: %d passed\n", report.TestsPassed))
@@ -182,7 +179,7 @@ func generateProjectedFinalOutputWithMode(results []ProjectedTaskResult, summary
 		if belowTarget > 0 || failed > 0 {
 			var needFix []string
 			var needCoverage []string
-			for _, projected := range results {
+			for i, projected := range results {
 				res := projected.Result
 				if res.ExitCode != 0 || res.Error != "" {
 					taskID := sanitizeOutput(res.TaskID)
@@ -195,7 +192,7 @@ func generateProjectedFinalOutputWithMode(results []ProjectedTaskResult, summary
 					continue
 				}
 
-				if statusForProjectedTask(projected, reportCoverageTarget).belowTarget {
+				if statuses[i].belowTarget {
 					needCoverage = append(needCoverage, sanitizeOutput(res.TaskID))
 				}
 			}
