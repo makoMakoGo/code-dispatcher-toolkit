@@ -252,7 +252,7 @@ def main(argv: list[str] | None = None) -> int:
     print("- This installer does not auto-copy skills into Claude Code/Codex CLI/OpenCode roots.")
 
     if router_path is not None:
-        _print_path_hint(install_dir / "bin")
+        _print_path_hint(router_path.parent)
 
     return 0
 
