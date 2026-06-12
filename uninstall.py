@@ -90,7 +90,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Removed: {path}")
     _rmdir_if_empty(prompts_dir)
 
-    _rmdir_if_empty(install_dir / "bin")
+    _rmdir_if_empty(install_dir / runtime_assets.binary_install_dir_name())
     _rmdir_if_empty(install_dir)
 
     if removed == 0:
