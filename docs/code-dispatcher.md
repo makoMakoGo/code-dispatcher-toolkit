@@ -116,8 +116,8 @@ AI 后端需要保存 session/刷新日志，强杀丢数据。信号先发到�
 
 两条代码路径完全不同：
 
-- **单任务**（`main.go:437-448`）：`fmt.Println(result.Message)` 直接透传后端 stdout。一个任务 = 一条流，没有"汇总/展开"的区分。
-- **并行**（`main.go:270-289`）：多任务结果收集后走 `generateFinalOutputWithMode()`，默认做结构化提取（Summary 模式），`--full-output` 切回完整原始消息用于调试。
+- **单任务**（`main.go` 的 `run()`）：`fmt.Println(result.Message)` 直接透传后端 stdout。一个任务 = 一条流，没有"汇总/展开"的区分。
+- **并行**（`parallel_run.go` 的 `runParallelInvocation()` → `report_projection.go` 的 `generateFinalOutputWithMode()`）：多任务结果收集后做结构化提取（Summary 模式），`--full-output` 切回完整原始消息用于调试。
 
 单任务不需要 flag，因为调用方直接拿到后端输出。并行需要，因为多份输出混在一起需要两种视图。
 

@@ -302,6 +302,13 @@ waitLoop:
 		}
 	}
 
+	// Grace period for stderr: in the normal case the backend's exit closed the
+	// write end and the copy goroutine has already hit EOF, so the first case
+	// fires immediately. The wait only elapses when something still holds the
+	// write end open (e.g. a spawned grandchild inheriting stderr) or trailing
+	// bytes are in flight under load; waiting up to stdoutDrainTimeout keeps
+	// that tail available to attachStderr instead of truncating it, then the
+	// force-close bounds the cost.
 	select {
 	case <-stderrDone:
 		closeWithReason(stderr, stdoutCloseReasonWait)
