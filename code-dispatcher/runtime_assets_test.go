@@ -40,31 +40,47 @@ func TestRuntimeAssetManifestPromptLookup(t *testing.T) {
 	}
 }
 
-func TestRuntimeAssetManifestInstallTargets(t *testing.T) {
-	if runtimeAssets.RuntimeConfig.Template != "templates/runtime-config.env" {
-		t.Fatalf("runtime config template = %q", runtimeAssets.RuntimeConfig.Template)
+func TestValidateRuntimeAssetManifestRejectsInvalidBackends(t *testing.T) {
+	cases := []struct {
+		name     string
+		manifest runtimeAssetManifest
+		wantErr  string
+	}{
+		{
+			name:     "empty backends",
+			manifest: runtimeAssetManifest{},
+			wantErr:  "runtime asset manifest missing backends",
+		},
+		{
+			name: "missing name",
+			manifest: runtimeAssetManifest{Backends: []runtimeBackendAsset{
+				{Name: "  ", PromptFile: "codex-prompt.md"},
+			}},
+			wantErr: "runtime asset manifest backends[0] missing name",
+		},
+		{
+			name: "duplicate backend",
+			manifest: runtimeAssetManifest{Backends: []runtimeBackendAsset{
+				{Name: "codex", PromptFile: "codex-prompt.md"},
+				{Name: "Codex", PromptFile: "other.md"},
+			}},
+			wantErr: `runtime asset manifest duplicate backend "codex"`,
+		},
+		{
+			name: "missing prompt file",
+			manifest: runtimeAssetManifest{Backends: []runtimeBackendAsset{
+				{Name: "codex", PromptFile: " "},
+			}},
+			wantErr: `runtime asset manifest backend "codex" missing prompt_file`,
+		},
 	}
-	if runtimeAssets.RuntimeConfig.InstallPath != ".env" {
-		t.Fatalf("runtime config install path = %q", runtimeAssets.RuntimeConfig.InstallPath)
-	}
-	if runtimeAssets.Binary.InstallDir != "bin" {
-		t.Fatalf("binary install dir = %q", runtimeAssets.Binary.InstallDir)
-	}
-	if len(runtimeAssets.Binary.ReleaseAssets) != 3 {
-		t.Fatalf("release asset count = %d, want 3", len(runtimeAssets.Binary.ReleaseAssets))
-	}
-}
 
-func TestRuntimeAssetManifestRequiresWindowsBinaryName(t *testing.T) {
-	manifest := runtimeAssets
-	manifest.Binary.NameByOS = map[string]string{}
-	for key, value := range runtimeAssets.Binary.NameByOS {
-		manifest.Binary.NameByOS[key] = value
-	}
-	delete(manifest.Binary.NameByOS, "nt")
-
-	err := validateRuntimeAssetManifest(manifest)
-	if err == nil || err.Error() != "runtime asset manifest missing binary.name_by_os.nt" {
-		t.Fatalf("validateRuntimeAssetManifest error = %v", err)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateRuntimeAssetManifest(tc.manifest)
+			if err == nil || err.Error() != tc.wantErr {
+				t.Fatalf("validateRuntimeAssetManifest error = %v, want %q", err, tc.wantErr)
+			}
+		})
 	}
 }

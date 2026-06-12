@@ -94,6 +94,19 @@ class LazyManifestTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "runtime asset manifest not found"):
                 runtime_assets.prompt_install_files()
 
+    def test_manifest_requires_windows_binary_name(self) -> None:
+        """Installer schema (incl. the Windows binary name) is validated on the
+        Python side; the Go binary only validates the backends section."""
+        with tempfile.TemporaryDirectory() as raw_dir:
+            bad_manifest = Path(raw_dir) / "runtime_assets.json"
+            bad_manifest.write_text(
+                '{"binary": {"name_by_os": {"default": "code-dispatcher"}}}',
+                encoding="utf-8",
+            )
+            with mock.patch.object(runtime_assets, "MANIFEST_PATH", bad_manifest):
+                with self.assertRaisesRegex(RuntimeError, r"binary\.name_by_os\.nt"):
+                    runtime_assets.binary()
+
     def test_help_does_not_load_manifest(self) -> None:
         with mock.patch.object(
             runtime_assets, "_load_manifest", side_effect=AssertionError("manifest loaded during --help")
