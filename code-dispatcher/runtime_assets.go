@@ -11,38 +11,17 @@ import (
 //go:embed runtime_assets.json
 var runtimeAssetsJSON []byte
 
+// runtimeAssetManifest models only the manifest sections the dispatcher
+// binary consumes at runtime: the backend list. Installer-only sections
+// (runtime_config, binary, legacy_uninstall) are owned and validated by
+// runtime_assets.py and test_runtime_assets.py.
 type runtimeAssetManifest struct {
-	RuntimeConfig   runtimeConfigAsset          `json:"runtime_config"`
-	Binary          runtimeBinaryAsset          `json:"binary"`
-	Backends        []runtimeBackendAsset       `json:"backends"`
-	LegacyUninstall runtimeLegacyUninstallAsset `json:"legacy_uninstall"`
-}
-
-type runtimeConfigAsset struct {
-	Template    string `json:"template"`
-	InstallPath string `json:"install_path"`
-}
-
-type runtimeBinaryAsset struct {
-	InstallDir    string                `json:"install_dir"`
-	NameByOS      map[string]string     `json:"name_by_os"`
-	ReleaseAssets []runtimeReleaseAsset `json:"release_assets"`
-}
-
-type runtimeReleaseAsset struct {
-	System   string   `json:"system"`
-	Machines []string `json:"machines"`
-	Asset    string   `json:"asset"`
+	Backends []runtimeBackendAsset `json:"backends"`
 }
 
 type runtimeBackendAsset struct {
-	Name           string `json:"name"`
-	PromptTemplate string `json:"prompt_template"`
-	PromptFile     string `json:"prompt_file"`
-}
-
-type runtimeLegacyUninstallAsset struct {
-	PromptFiles []string `json:"prompt_files"`
+	Name       string `json:"name"`
+	PromptFile string `json:"prompt_file"`
 }
 
 var runtimeAssets = mustLoadRuntimeAssetManifest(runtimeAssetsJSON)
@@ -67,36 +46,6 @@ func loadRuntimeAssetManifest(data []byte) (runtimeAssetManifest, error) {
 }
 
 func validateRuntimeAssetManifest(manifest runtimeAssetManifest) error {
-	if strings.TrimSpace(manifest.RuntimeConfig.Template) == "" {
-		return fmt.Errorf("runtime asset manifest missing runtime_config.template")
-	}
-	if strings.TrimSpace(manifest.RuntimeConfig.InstallPath) == "" {
-		return fmt.Errorf("runtime asset manifest missing runtime_config.install_path")
-	}
-	if strings.TrimSpace(manifest.Binary.InstallDir) == "" {
-		return fmt.Errorf("runtime asset manifest missing binary.install_dir")
-	}
-	if strings.TrimSpace(manifest.Binary.NameByOS["default"]) == "" {
-		return fmt.Errorf("runtime asset manifest missing binary.name_by_os.default")
-	}
-	if strings.TrimSpace(manifest.Binary.NameByOS["nt"]) == "" {
-		return fmt.Errorf("runtime asset manifest missing binary.name_by_os.nt")
-	}
-	if len(manifest.Binary.ReleaseAssets) == 0 {
-		return fmt.Errorf("runtime asset manifest missing binary.release_assets")
-	}
-	for i, asset := range manifest.Binary.ReleaseAssets {
-		if strings.TrimSpace(asset.System) == "" {
-			return fmt.Errorf("runtime asset manifest release_assets[%d] missing system", i)
-		}
-		if len(asset.Machines) == 0 {
-			return fmt.Errorf("runtime asset manifest release_assets[%d] missing machines", i)
-		}
-		if strings.TrimSpace(asset.Asset) == "" {
-			return fmt.Errorf("runtime asset manifest release_assets[%d] missing asset", i)
-		}
-	}
-
 	if len(manifest.Backends) == 0 {
 		return fmt.Errorf("runtime asset manifest missing backends")
 	}
@@ -110,9 +59,6 @@ func validateRuntimeAssetManifest(manifest runtimeAssetManifest) error {
 			return fmt.Errorf("runtime asset manifest duplicate backend %q", name)
 		}
 		seen[name] = struct{}{}
-		if strings.TrimSpace(backend.PromptTemplate) == "" {
-			return fmt.Errorf("runtime asset manifest backend %q missing prompt_template", name)
-		}
 		if strings.TrimSpace(backend.PromptFile) == "" {
 			return fmt.Errorf("runtime asset manifest backend %q missing prompt_file", name)
 		}
