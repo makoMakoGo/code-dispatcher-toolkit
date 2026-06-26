@@ -3,13 +3,21 @@ updates:
   - package-ecosystem: "gomod"
     directory: "/code-dispatcher"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     cooldown:
-      default-days: 7
+      default-days: 30
+    groups:
+      go-modules:
+        patterns:
+          - "*"
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
     cooldown:
-      default-days: 7
+      default-days: 30
+    groups:
+      github-actions:
+        patterns:
+          - "*"
