@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -22,9 +21,8 @@ const (
 	// stderrCaptureLimit caps the rolling stderr tail attached to TaskResult.Error
 	// (and thus to execution reports). Full stderr still reaches the task log via
 	// stderrLogger; keep this small so failed tasks cannot flood report output.
-	stderrCaptureLimit    = 4 * 1024
-	defaultBackendName    = "codex"
-	defaultBackendCommand = "codex"
+	stderrCaptureLimit = 4 * 1024
+	defaultBackendName = "codex"
 
 	// stdout close reasons
 	stdoutCloseReasonWait  = "wait-done"
@@ -35,19 +33,16 @@ const (
 
 // Test hooks for dependency injection
 var (
-	stdinReader    io.Reader = os.Stdin
-	isTerminalFn             = defaultIsTerminal
-	backendCommand           = defaultBackendCommand
-	cleanupHook    func()
-	loggerPtr      atomic.Pointer[Logger]
+	stdinReader  io.Reader = os.Stdin
+	isTerminalFn           = defaultIsTerminal
+	cleanupHook  func()
+	loggerPtr    atomic.Pointer[Logger]
 
-	buildArgsFn        = buildCodexArgs
 	selectBackendFn    = selectBackend
 	commandContext     = exec.CommandContext
 	cleanupLogsFn      = cleanupOldLogs
 	signalNotifyCtxFn  = signal.NotifyContext
 	terminateCommandFn = terminateCommand
-	defaultBuildArgsFn = buildCodexArgs
 	runTaskFn          = runTask
 	exitFn             = os.Exit
 )
@@ -197,17 +192,6 @@ func run() (exitCode int) {
 	}
 	cfg.Backend = backend.Name()
 
-	cmdInjected := backendCommand != defaultBackendCommand
-	argsInjected := buildArgsFn != nil && reflect.ValueOf(buildArgsFn).Pointer() != reflect.ValueOf(defaultBuildArgsFn).Pointer()
-
-	// Wire selected backend into runtime hooks for the rest of the execution,
-	// but preserve any injected test hooks for the default backend.
-	if backend.Name() != defaultBackendName || !cmdInjected {
-		backendCommand = backend.Command()
-	}
-	if backend.Name() != defaultBackendName || !argsInjected {
-		buildArgsFn = backend.BuildArgs
-	}
 	logInfo(fmt.Sprintf("Selected backend: %s", backend.Name()))
 
 	timeoutSec := resolveTimeout()

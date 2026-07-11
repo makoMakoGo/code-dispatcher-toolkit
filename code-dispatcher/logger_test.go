@@ -577,7 +577,7 @@ func TestLoggerCoverageSuite(t *testing.T) {
 
 		{"TestClaudeBuildArgs_ModesAndPermissions", TestClaudeBuildArgs_ModesAndPermissions},
 		{"TestVariousBackendsBuildArgs", TestVariousBackendsBuildArgs},
-		{"TestClaudeBuildArgs_BackendMetadata", TestClaudeBuildArgs_BackendMetadata},
+		{"TestBackendMetadata", TestBackendMetadata},
 	}
 
 	for _, tc := range suite {

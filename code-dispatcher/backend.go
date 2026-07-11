@@ -10,8 +10,6 @@ import (
 // backend invocation.
 type Backend interface {
 	Name() string
-	BuildArgs(cfg *Config, targetArg string) []string
-	Command() string
 	BuildInvocation(cfg *Config, targetArg string) BackendInvocation
 }
 
@@ -99,35 +97,6 @@ func runtimeInjectedEnvForInvocation() map[string]string {
 		return nil
 	}
 	return env
-}
-
-// legacyBackendInvocation builds the invocation for the global-hook execution
-// path, where tests may inject commandName and pre-built args. Backend policy
-// (env injection, unset keys, workdir, stream parsing) is delegated to the
-// registry backend so it lives in exactly one place; command and args are then
-// overridden with the caller-provided values.
-func legacyBackendInvocation(cfg *Config, commandName string, args []string) BackendInvocation {
-	if cfg == nil {
-		// selectBackend resolves an empty name to the default backend, whose
-		// BuildInvocation must never see a nil config (buildCodexArgs panics).
-		cfg = &Config{}
-	}
-	name := normalizeBackendName(cfg.Backend)
-	backend, err := selectBackendFn(name)
-	if err != nil {
-		// Unknown backend: keep a generic invocation without backend policy.
-		return BackendInvocation{
-			BackendName: name,
-			Command:     commandName,
-			Args:        args,
-			Env:         runtimeInjectedEnvForInvocation(),
-			ParseStream: parseJSONStreamInternal,
-		}
-	}
-	invocation := backend.BuildInvocation(cfg, "")
-	invocation.Command = commandName
-	invocation.Args = args
-	return invocation
 }
 
 func buildCodexArgs(cfg *Config, targetArg string) []string {

@@ -315,13 +315,17 @@ func defaultRunParallelTaskFn(task TaskSpec, timeout int) TaskResult {
 	}
 	task.Backend = backend.Name()
 	task.UseStdin = task.UseStdin || shouldUseStdin(task.Task, false)
+	task, invocation, err := planTaskInvocation(task, backend)
+	if err != nil {
+		return TaskResult{TaskID: task.ID, ExitCode: 1, Error: err.Error()}
+	}
 
 	parentCtx := context.Background()
 	if task.Context != nil {
 		parentCtx = task.Context
 		task.Context = nil
 	}
-	return runTaskWithContext(parentCtx, task, backend, true, timeout)
+	return executeTaskWithContext(parentCtx, task, invocation, true, timeout)
 }
 
 var runParallelTaskFn = defaultRunParallelTaskFn
@@ -593,63 +597,90 @@ func getStatusSymbols() (success, warning, failed string) {
 	return "✓", "⚠️", "✗"
 }
 
-func runTask(taskSpec TaskSpec, silent bool, timeoutSec int) TaskResult {
-	return runTaskWithContext(context.Background(), taskSpec, nil, silent, timeoutSec)
-}
+func planTaskInvocation(taskSpec TaskSpec, backend Backend) (TaskSpec, BackendInvocation, error) {
+	if backend == nil {
+		return taskSpec, BackendInvocation{}, fmt.Errorf("backend is required")
+	}
+	if taskSpec.Mode == "" {
+		taskSpec.Mode = "new"
+	}
+	if taskSpec.WorkDir == "" {
+		taskSpec.WorkDir = defaultWorkdir
+	}
+	if taskSpec.Mode == "resume" && strings.TrimSpace(taskSpec.SessionID) == "" {
+		return taskSpec, BackendInvocation{}, fmt.Errorf("resume mode requires non-empty session_id")
+	}
 
-func runTaskWithContext(parentCtx context.Context, taskSpec TaskSpec, backend Backend, silent bool, timeoutSec int) TaskResult {
-	parentCtx = effectiveTaskContext(parentCtx, taskSpec.Context)
-
-	result := TaskResult{TaskID: taskSpec.ID}
-	injectedLogger := taskLoggerFromContext(parentCtx)
-	logger := injectedLogger
-
+	taskSpec.Backend = backend.Name()
 	cfg := &Config{
 		Mode:      taskSpec.Mode,
 		Task:      taskSpec.Task,
 		SessionID: taskSpec.SessionID,
 		WorkDir:   taskSpec.WorkDir,
-		Backend:   defaultBackendName,
+		Backend:   taskSpec.Backend,
 	}
-
-	commandName := backendCommand
-	argsBuilder := buildArgsFn
-	if backend != nil {
-		cfg.Backend = backend.Name()
-	} else if taskSpec.Backend != "" {
-		cfg.Backend = taskSpec.Backend
-	} else if commandName != "" {
-		cfg.Backend = commandName
-	}
-
-	if cfg.Mode == "" {
-		cfg.Mode = "new"
-	}
-	if cfg.WorkDir == "" {
-		cfg.WorkDir = defaultWorkdir
-	}
-
-	if cfg.Mode == "resume" && strings.TrimSpace(cfg.SessionID) == "" {
-		result.ExitCode = 1
-		result.Error = "resume mode requires non-empty session_id"
-		return result
-	}
-
-	useStdin := taskSpec.UseStdin
 	targetArg := taskSpec.Task
-	if useStdin {
+	if taskSpec.UseStdin {
 		targetArg = "-"
 	}
 
-	invocation := BackendInvocation{}
-	if backend != nil {
-		invocation = backend.BuildInvocation(cfg, targetArg)
-	} else {
-		invocation = legacyBackendInvocation(cfg, commandName, argsBuilder(cfg, targetArg))
+	invocation := backend.BuildInvocation(cfg, targetArg)
+	if err := validateBackendInvocation(invocation); err != nil {
+		return taskSpec, BackendInvocation{}, err
 	}
-	if invocation.BackendName != "" {
-		cfg.Backend = invocation.BackendName
+	taskSpec.plannedInvocation = &invocation
+	return taskSpec, invocation, nil
+}
+
+func validateBackendInvocation(invocation BackendInvocation) error {
+	if normalizeBackendName(invocation.BackendName) == "" {
+		return fmt.Errorf("backend invocation missing backend name")
 	}
+	if strings.TrimSpace(invocation.Command) == "" {
+		return fmt.Errorf("backend invocation %q missing command", invocation.BackendName)
+	}
+	if invocation.ParseStream == nil {
+		return fmt.Errorf("backend invocation %q missing stream parser", invocation.BackendName)
+	}
+	return nil
+}
+
+func runTask(taskSpec TaskSpec, silent bool, timeoutSec int) TaskResult {
+	return runTaskWithContext(context.Background(), taskSpec, nil, silent, timeoutSec)
+}
+
+func runTaskWithContext(parentCtx context.Context, taskSpec TaskSpec, backend Backend, silent bool, timeoutSec int) TaskResult {
+	if taskSpec.plannedInvocation != nil {
+		return executeTaskWithContext(parentCtx, taskSpec, *taskSpec.plannedInvocation, silent, timeoutSec)
+	}
+
+	if backend == nil {
+		selected, err := selectBackendFn(taskSpec.Backend)
+		if err != nil {
+			return TaskResult{TaskID: taskSpec.ID, ExitCode: 1, Error: err.Error()}
+		}
+		backend = selected
+	}
+
+	plannedTask, invocation, err := planTaskInvocation(taskSpec, backend)
+	if err != nil {
+		return TaskResult{TaskID: taskSpec.ID, ExitCode: 1, Error: err.Error()}
+	}
+	return executeTaskWithContext(parentCtx, plannedTask, invocation, silent, timeoutSec)
+}
+
+func executeTaskWithContext(parentCtx context.Context, taskSpec TaskSpec, invocation BackendInvocation, silent bool, timeoutSec int) TaskResult {
+	parentCtx = effectiveTaskContext(parentCtx, taskSpec.Context)
+
+	result := TaskResult{TaskID: taskSpec.ID}
+	if err := validateBackendInvocation(invocation); err != nil {
+		result.ExitCode = 1
+		result.Error = err.Error()
+		return result
+	}
+
+	injectedLogger := taskLoggerFromContext(parentCtx)
+	logger := injectedLogger
 
 	prefixMsg := func(msg string) string {
 		if taskSpec.ID == "" {
@@ -732,7 +763,7 @@ func runTaskWithContext(parentCtx context.Context, taskSpec TaskSpec, backend Ba
 		Context:      parentCtx,
 		Invocation:   invocation,
 		TaskText:     taskSpec.Task,
-		UseStdin:     useStdin,
+		UseStdin:     taskSpec.UseStdin,
 		TimeoutSec:   timeoutSec,
 		LogPath:      result.LogPath,
 		StdoutLogger: stdoutLogger,

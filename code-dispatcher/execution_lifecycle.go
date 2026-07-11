@@ -386,7 +386,7 @@ func cancelReason(commandName string, ctx context.Context) string {
 	}
 
 	if commandName == "" {
-		commandName = backendCommand
+		commandName = defaultBackendName
 	}
 
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {

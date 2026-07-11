@@ -100,31 +100,11 @@ The script installs the following:
 
 - `~/.code-dispatcher/.env`: single runtime config source
 - `~/.code-dispatcher/prompts/*-prompt.md`: default prompt templates for each backend (editable; leave empty to disable injection)
-- `~/.code-dispatcher/bin/code-dispatcher` (`.exe` on Windows, etc.)
+- binary: installed to the directory and filename declared by `runtime_assets.json`; `install.py` prints the actual path
 
 **Important**: Different platforms have different code agent shell environments, so they cannot all be assumed to follow the same execution pattern.
 
-`install.py` outputs persistence commands for common shells (Windows: PowerShell, CMD, Git Bash; Non-Windows: Bash, Zsh, Fish). The examples below use the default install path:
-
-```bash
-Windows PowerShell:
-[Environment]::SetEnvironmentVariable("Path", $env:Path + ";$HOME\.code-dispatcher\bin", "User")
-
-Windows CMD:
-setx PATH "%PATH%;%USERPROFILE%\.code-dispatcher\bin"
-
-Git Bash (e.g. Claude Code on Windows):
-echo 'export PATH="$HOME/.code-dispatcher/bin:$PATH"' >> ~/.bashrc
-
-Bash (e.g. WSL/Linux):
-echo 'export PATH="$PATH:$HOME/.code-dispatcher/bin"' >> ~/.bashrc
-
-Zsh (e.g. macOS default):
-echo 'export PATH="$PATH:$HOME/.code-dispatcher/bin"' >> ~/.zshrc
-
-Fish:
-echo 'set -gx PATH "$HOME/.code-dispatcher/bin" $PATH' >> ~/.config/fish/config.fish
-```
+`install.py` derives the binary directory from the manifest and prints the appropriate persistent PATH commands for common shells. Use that output directly instead of maintaining a duplicated fixed `bin` path in documentation.
 
 ### Step 2: Install Code Dispatcher Skill
 
@@ -175,23 +155,13 @@ For full field definitions, see: [docs/runtime-config.en.md](docs/runtime-config
 
 ### Running Tests
 
+Run the single verification entry point before submitting changes:
+
 ```bash
-cd code-dispatcher
-go test ./...
-
-# Verify local build
-cd ..
-bash scripts/build-dist.sh
-
-# Verify install script syntax and template references
-python3 -m py_compile install.py
-
-# Non-polluting install regression test (using temp directory)
-tmpdir="$(mktemp -d)"
-python3 install.py --install-dir "$tmpdir/.code-dispatcher" --skip-dispatcher --force
-python3 install.py --install-dir "$tmpdir/.code-dispatcher" --force
-rm -rf "$tmpdir"
+bash scripts/verify.sh
 ```
+
+It runs formatting and static analysis, the race-enabled coverage gate, and the installer/runtime asset contract tests. Pull-request CI and release publishing use the same entry point.
 
 ## Community / Contributing
 

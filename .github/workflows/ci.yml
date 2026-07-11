@@ -26,11 +26,5 @@ jobs:
           go-version-file: code-dispatcher/go.mod
           cache: false
 
-      - name: Run quality checks
-        run: bash scripts/quality-check.sh
-
-      - name: Run tests with coverage gate
-        run: bash scripts/test-coverage.sh
-
-      - name: Run installer asset tests
-        run: python3 test_runtime_assets.py
+      - name: Run verification gate
+        run: bash scripts/verify.sh
