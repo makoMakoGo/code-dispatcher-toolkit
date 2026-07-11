@@ -1415,9 +1415,6 @@ func TestExecutorCancelReasonAndCloseWithReason(t *testing.T) {
 	if !strings.Contains(cancelReason("cmd", cancelCtx), "Execution cancelled") {
 		t.Fatalf("expected cancellation reason")
 	}
-	if !strings.Contains(cancelReason("", cancelCtx), "codex") {
-		t.Fatalf("expected default command name in cancel reason")
-	}
 
 	rc := &reasonReadCloser{r: strings.NewReader("data"), closedC: make(chan struct{}, 1)}
 	closeWithReason(rc, "why")

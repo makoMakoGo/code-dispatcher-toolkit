@@ -385,10 +385,6 @@ func cancelReason(commandName string, ctx context.Context) string {
 		return "Context cancelled"
 	}
 
-	if commandName == "" {
-		commandName = defaultBackendName
-	}
-
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		return fmt.Sprintf("%s execution timeout", commandName)
 	}
