@@ -100,31 +100,11 @@ python3 install.py --skip-dispatcher
 
 - `~/.code-dispatcher/.env`：运行时唯一配置源
 - `~/.code-dispatcher/prompts/*-prompt.md`：每个后端的默认 prompt 模板（可编辑，置空则禁用注入）
-- `~/.code-dispatcher/bin/code-dispatcher`（Windows 上是 `.exe`，以此类推）
+- binary：安装到 `runtime_assets.json` 声明的目录与文件名；实际路径由 `install.py` 输出
 
 特别需要注意的是：不同平台下 code agent 的 shell 环境并不完全一致，不能默认都按同一套假设执行。
 
-`install.py` 会直接输出常见 shell 的持久化设置命令（Windows：PowerShell、CMD、Git Bash；非 Windows：Bash、Zsh、Fish）。下面是默认安装路径示例：
-
-```bash
-Windows PowerShell:
-[Environment]::SetEnvironmentVariable("Path", $env:Path + ";$HOME\.code-dispatcher\bin", "User")
-
-Windows CMD:
-setx PATH "%PATH%;%USERPROFILE%\.code-dispatcher\bin"
-
-Git Bash (e.g. Claude Code on Windows):
-echo 'export PATH="$HOME/.code-dispatcher/bin:$PATH"' >> ~/.bashrc
-
-Bash (e.g. WSL/Linux):
-echo 'export PATH="$PATH:$HOME/.code-dispatcher/bin"' >> ~/.bashrc
-
-Zsh (e.g. macOS 默认):
-echo 'export PATH="$PATH:$HOME/.code-dispatcher/bin"' >> ~/.zshrc
-
-Fish:
-echo 'set -gx PATH "$HOME/.code-dispatcher/bin" $PATH' >> ~/.config/fish/config.fish
-```
+`install.py` 会根据 manifest 中的实际 binary 目录输出当前平台常用 shell 的 PATH 持久化命令。安装完成后直接使用脚本输出，不在文档中重复维护固定的 `bin` 路径。
 
 ### Step 2: 安装 Code Dispatcher Skill 
 
@@ -175,23 +155,13 @@ use dispatcher with codex to fix the bug we just discussed
 
 ### 运行验证
 
+提交前执行统一验证入口：
+
 ```bash
-cd code-dispatcher
-go test ./...
-
-# 验证本地构建
-cd ..
-bash scripts/build-dist.sh
-
-# 验证安装脚本语法与模板引用
-python3 -m py_compile install.py
-
-# 不污染真实环境的安装回归（使用临时目录）
-tmpdir="$(mktemp -d)"
-python3 install.py --install-dir "$tmpdir/.code-dispatcher" --skip-dispatcher --force
-python3 install.py --install-dir "$tmpdir/.code-dispatcher" --force
-rm -rf "$tmpdir"
+bash scripts/verify.sh
 ```
+
+该入口依次运行格式与静态检查、race + coverage gate，以及 installer/runtime asset contract tests。PR CI 与发布流程使用同一个入口。
 
 ## 社区与贡献
 

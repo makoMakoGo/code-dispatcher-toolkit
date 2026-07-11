@@ -67,7 +67,7 @@ func TestVariousBackendsBuildArgs(t *testing.T) {
 
 }
 
-func TestClaudeBuildArgs_BackendMetadata(t *testing.T) {
+func TestBackendMetadata(t *testing.T) {
 	tests := []struct {
 		backend Backend
 		name    string
@@ -81,8 +81,9 @@ func TestClaudeBuildArgs_BackendMetadata(t *testing.T) {
 		if got := tt.backend.Name(); got != tt.name {
 			t.Fatalf("Name() = %s, want %s", got, tt.name)
 		}
-		if got := tt.backend.Command(); got != tt.command {
-			t.Fatalf("Command() = %s, want %s", got, tt.command)
+		invocation := tt.backend.BuildInvocation(&Config{Mode: "new", WorkDir: defaultWorkdir}, "task")
+		if invocation.Command != tt.command {
+			t.Fatalf("Command = %s, want %s", invocation.Command, tt.command)
 		}
 	}
 }
@@ -174,69 +175,6 @@ func TestBackendInvocationPolicy(t *testing.T) {
 		}
 	})
 
-	t.Run("legacy claude resume keeps explicit workdir", func(t *testing.T) {
-		cfg := &Config{Mode: "resume", SessionID: "sid", WorkDir: "/repo", Backend: "claude"}
-		invocation := legacyBackendInvocation(cfg, "claude", []string{"-p"})
-		if invocation.WorkDir != "/repo" {
-			t.Fatalf("legacy resume WorkDir = %q, want /repo", invocation.WorkDir)
-		}
-	})
-
-	t.Run("legacy path inherits registry backend policy", func(t *testing.T) {
-		cfg := &Config{Mode: "new", WorkDir: "/repo", Backend: "claude"}
-		invocation := legacyBackendInvocation(cfg, "fake-claude", []string{"-p", "injected"})
-		if invocation.Command != "fake-claude" {
-			t.Fatalf("Command = %q, want injected fake-claude", invocation.Command)
-		}
-		if !reflect.DeepEqual(invocation.Args, []string{"-p", "injected"}) {
-			t.Fatalf("Args = %v, want injected args", invocation.Args)
-		}
-		if !reflect.DeepEqual(invocation.UnsetEnvKeys, []string{"CLAUDECODE"}) {
-			t.Fatalf("UnsetEnvKeys = %v, want CLAUDECODE from backend policy", invocation.UnsetEnvKeys)
-		}
-		if invocation.WorkDir != "/repo" {
-			t.Fatalf("WorkDir = %q, want /repo from backend policy", invocation.WorkDir)
-		}
-		if invocation.ParseStream == nil {
-			t.Fatalf("legacy invocation missing stream parser")
-		}
-	})
-
-	t.Run("legacy nil config resolves default backend without panicking", func(t *testing.T) {
-		// Empty backend name falls back to the default backend in selectBackend,
-		// whose BuildInvocation must not receive a nil config (buildCodexArgs
-		// panics on nil).
-		invocation := legacyBackendInvocation(nil, "codex-cmd", []string{"-x"})
-		if invocation.BackendName != "codex" {
-			t.Fatalf("BackendName = %q, want codex (default backend)", invocation.BackendName)
-		}
-		if invocation.Command != "codex-cmd" {
-			t.Fatalf("Command = %q, want codex-cmd", invocation.Command)
-		}
-		if !reflect.DeepEqual(invocation.Args, []string{"-x"}) {
-			t.Fatalf("Args = %v, want injected args", invocation.Args)
-		}
-	})
-
-	t.Run("legacy unknown backend falls back to generic invocation", func(t *testing.T) {
-		cfg := &Config{Mode: "new", WorkDir: "/repo", Backend: "mystery"}
-		invocation := legacyBackendInvocation(cfg, "mystery-cmd", []string{"-x"})
-		if invocation.BackendName != "mystery" {
-			t.Fatalf("BackendName = %q, want mystery", invocation.BackendName)
-		}
-		if invocation.Command != "mystery-cmd" {
-			t.Fatalf("Command = %q, want mystery-cmd", invocation.Command)
-		}
-		if !reflect.DeepEqual(invocation.Args, []string{"-x"}) {
-			t.Fatalf("Args = %v, want [-x]", invocation.Args)
-		}
-		if len(invocation.UnsetEnvKeys) != 0 || invocation.WorkDir != "" {
-			t.Fatalf("generic invocation should carry no backend policy, got %+v", invocation)
-		}
-		if invocation.ParseStream == nil {
-			t.Fatalf("generic invocation missing stream parser")
-		}
-	})
 }
 
 func TestRuntimeInjectedEnvForInvocation(t *testing.T) {

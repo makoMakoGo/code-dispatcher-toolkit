@@ -71,10 +71,11 @@ func TestResumeConversation_SupportedBackends(t *testing.T) {
 			t.Setenv("USERPROFILE", home)
 
 			var calls int
+			expectedCommand := tt.backend.BuildInvocation(&Config{Mode: "new", WorkDir: defaultWorkdir}, "task").Command
 			newCommandRunner = func(ctx context.Context, name string, args ...string) commandRunner {
 				calls++
-				if name != tt.backend.Command() {
-					t.Fatalf("command name=%q, want %q", name, tt.backend.Command())
+				if name != expectedCommand {
+					t.Fatalf("command name=%q, want %q", name, expectedCommand)
 				}
 				if calls == 1 {
 					if err := tt.checkNewArgs(args); err != nil {

@@ -661,15 +661,7 @@ func TestExecutorRunTaskWithContext(t *testing.T) {
 		}
 	})
 
-	t.Run("legacyClaudeInvocationSetsDir", func(t *testing.T) {
-		origCommand := backendCommand
-		origBuildArgs := buildArgsFn
-		backendCommand = "claude"
-		buildArgsFn = buildClaudeArgs
-		t.Cleanup(func() {
-			backendCommand = origCommand
-			buildArgsFn = origBuildArgs
-		})
+	t.Run("selectedClaudeInvocationSetsDir", func(t *testing.T) {
 
 		var rc *execFakeRunner
 		newCommandRunner = func(ctx context.Context, name string, args ...string) commandRunner {
@@ -685,7 +677,7 @@ func TestExecutorRunTaskWithContext(t *testing.T) {
 			t.Fatalf("unexpected result: %+v", res)
 		}
 		if rc == nil || rc.dir != "/tmp" {
-			t.Fatalf("expected legacy claude invocation to set cmd.Dir, got runner=%v dir=%q", rc, rc.dir)
+			t.Fatalf("expected selected claude invocation to set cmd.Dir, got runner=%v dir=%q", rc, rc.dir)
 		}
 	})
 

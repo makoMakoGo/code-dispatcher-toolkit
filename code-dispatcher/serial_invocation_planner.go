@@ -32,12 +32,6 @@ func planSerialInvocation(cfg *Config, backend Backend) (*serialInvocationPlan, 
 	}
 
 	useStdin := cfg.ExplicitStdin || shouldUseStdin(taskText, piped)
-	targetArg := taskText
-	if useStdin {
-		targetArg = "-"
-	}
-
-	invocation := backend.BuildInvocation(cfg, targetArg)
 	taskSpec := TaskSpec{
 		Task:      taskText,
 		WorkDir:   cfg.WorkDir,
@@ -45,6 +39,10 @@ func planSerialInvocation(cfg *Config, backend Backend) (*serialInvocationPlan, 
 		SessionID: cfg.SessionID,
 		Backend:   cfg.Backend,
 		UseStdin:  useStdin,
+	}
+	taskSpec, invocation, err := planTaskInvocation(taskSpec, backend)
+	if err != nil {
+		return nil, err
 	}
 
 	return &serialInvocationPlan{
