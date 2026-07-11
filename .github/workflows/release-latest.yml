@@ -28,11 +28,8 @@ jobs:
           go-version-file: code-dispatcher/go.mod
           cache: false
 
-      - name: Run quality checks
-        run: bash scripts/quality-check.sh
-
-      - name: Run tests with coverage gate
-        run: bash scripts/test-coverage.sh
+      - name: Run verification suite
+        run: bash scripts/verify.sh
 
       - name: Build cross-platform binaries
         run: bash scripts/build-dist.sh

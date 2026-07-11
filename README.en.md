@@ -96,35 +96,9 @@ python3 install.py --install-dir ~/.code-dispatcher --force
 python3 install.py --skip-dispatcher
 ```
 
-The script installs the following:
+The script installs the runtime configuration, per-backend prompt templates, and the dispatcher binary for the current platform. The binary layout, config path, and prompt filenames are derived from the runtime asset manifest; after installation, it prints the actual file locations and the PATH command for the current shell.
 
-- `~/.code-dispatcher/.env`: single runtime config source
-- `~/.code-dispatcher/prompts/*-prompt.md`: default prompt templates for each backend (editable; leave empty to disable injection)
-- `~/.code-dispatcher/bin/code-dispatcher` (`.exe` on Windows, etc.)
-
-**Important**: Different platforms have different code agent shell environments, so they cannot all be assumed to follow the same execution pattern.
-
-`install.py` outputs persistence commands for common shells (Windows: PowerShell, CMD, Git Bash; Non-Windows: Bash, Zsh, Fish). The examples below use the default install path:
-
-```bash
-Windows PowerShell:
-[Environment]::SetEnvironmentVariable("Path", $env:Path + ";$HOME\.code-dispatcher\bin", "User")
-
-Windows CMD:
-setx PATH "%PATH%;%USERPROFILE%\.code-dispatcher\bin"
-
-Git Bash (e.g. Claude Code on Windows):
-echo 'export PATH="$HOME/.code-dispatcher/bin:$PATH"' >> ~/.bashrc
-
-Bash (e.g. WSL/Linux):
-echo 'export PATH="$PATH:$HOME/.code-dispatcher/bin"' >> ~/.bashrc
-
-Zsh (e.g. macOS default):
-echo 'export PATH="$PATH:$HOME/.code-dispatcher/bin"' >> ~/.zshrc
-
-Fish:
-echo 'set -gx PATH "$HOME/.code-dispatcher/bin" $PATH' >> ~/.config/fish/config.fish
-```
+The documentation does not duplicate the binary directory or PATH commands. When using a custom `--install-dir` or manifest layout, use the command printed by `install.py`.
 
 ### Step 2: Install Code Dispatcher Skill
 
@@ -153,7 +127,6 @@ The `dev` skill is a Claude Code manual-only skill, invoked explicitly with `/de
 use dispatcher with codex to fix the bug we just discussed
 ```
 
-
 ### Optional Configuration
 
 Runtime parameters are unified in `~/.code-dispatcher/.env`. Configurable items include:
@@ -176,17 +149,13 @@ For full field definitions, see: [docs/runtime-config.en.md](docs/runtime-config
 ### Running Tests
 
 ```bash
-cd code-dispatcher
-go test ./...
+# Identical to the pull-request CI and release gate
+bash scripts/verify.sh
 
-# Verify local build
-cd ..
+# Verify the local cross-platform build
 bash scripts/build-dist.sh
 
-# Verify install script syntax and template references
-python3 -m py_compile install.py
-
-# Non-polluting install regression test (using temp directory)
+# Non-polluting install regression test (using a temporary directory)
 tmpdir="$(mktemp -d)"
 python3 install.py --install-dir "$tmpdir/.code-dispatcher" --skip-dispatcher --force
 python3 install.py --install-dir "$tmpdir/.code-dispatcher" --force

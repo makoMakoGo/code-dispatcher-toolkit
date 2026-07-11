@@ -597,6 +597,20 @@ func runTask(taskSpec TaskSpec, silent bool, timeoutSec int) TaskResult {
 	return runTaskWithContext(context.Background(), taskSpec, nil, silent, timeoutSec)
 }
 
+func resolveTaskInvocation(taskSpec TaskSpec, cfg *Config, backend Backend, targetArg string) (BackendInvocation, error) {
+	if taskSpec.plannedInvocation != nil {
+		return *taskSpec.plannedInvocation, nil
+	}
+	if backend == nil {
+		resolved, err := selectBackendFn(cfg.Backend)
+		if err != nil {
+			return BackendInvocation{}, err
+		}
+		backend = resolved
+	}
+	return buildBackendInvocation(backend, cfg, targetArg), nil
+}
+
 func runTaskWithContext(parentCtx context.Context, taskSpec TaskSpec, backend Backend, silent bool, timeoutSec int) TaskResult {
 	parentCtx = effectiveTaskContext(parentCtx, taskSpec.Context)
 
@@ -612,14 +626,10 @@ func runTaskWithContext(parentCtx context.Context, taskSpec TaskSpec, backend Ba
 		Backend:   defaultBackendName,
 	}
 
-	commandName := backendCommand
-	argsBuilder := buildArgsFn
 	if backend != nil {
 		cfg.Backend = backend.Name()
 	} else if taskSpec.Backend != "" {
 		cfg.Backend = taskSpec.Backend
-	} else if commandName != "" {
-		cfg.Backend = commandName
 	}
 
 	if cfg.Mode == "" {
@@ -641,11 +651,11 @@ func runTaskWithContext(parentCtx context.Context, taskSpec TaskSpec, backend Ba
 		targetArg = "-"
 	}
 
-	invocation := BackendInvocation{}
-	if backend != nil {
-		invocation = backend.BuildInvocation(cfg, targetArg)
-	} else {
-		invocation = legacyBackendInvocation(cfg, commandName, argsBuilder(cfg, targetArg))
+	invocation, err := resolveTaskInvocation(taskSpec, cfg, backend, targetArg)
+	if err != nil {
+		result.ExitCode = 1
+		result.Error = err.Error()
+		return result
 	}
 	if invocation.BackendName != "" {
 		cfg.Backend = invocation.BackendName

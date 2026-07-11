@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -196,18 +195,6 @@ func run() (exitCode int) {
 		return 1
 	}
 	cfg.Backend = backend.Name()
-
-	cmdInjected := backendCommand != defaultBackendCommand
-	argsInjected := buildArgsFn != nil && reflect.ValueOf(buildArgsFn).Pointer() != reflect.ValueOf(defaultBuildArgsFn).Pointer()
-
-	// Wire selected backend into runtime hooks for the rest of the execution,
-	// but preserve any injected test hooks for the default backend.
-	if backend.Name() != defaultBackendName || !cmdInjected {
-		backendCommand = backend.Command()
-	}
-	if backend.Name() != defaultBackendName || !argsInjected {
-		buildArgsFn = backend.BuildArgs
-	}
 	logInfo(fmt.Sprintf("Selected backend: %s", backend.Name()))
 
 	timeoutSec := resolveTimeout()

@@ -8,7 +8,7 @@ import (
 )
 
 type serialInvocationPlan struct {
-	Invocation BackendInvocation
+	Invocation *BackendInvocation
 	TaskSpec   TaskSpec
 	Reasons    []string
 }
@@ -37,18 +37,19 @@ func planSerialInvocation(cfg *Config, backend Backend) (*serialInvocationPlan, 
 		targetArg = "-"
 	}
 
-	invocation := backend.BuildInvocation(cfg, targetArg)
+	invocation := buildBackendInvocation(backend, cfg, targetArg)
 	taskSpec := TaskSpec{
-		Task:      taskText,
-		WorkDir:   cfg.WorkDir,
-		Mode:      cfg.Mode,
-		SessionID: cfg.SessionID,
-		Backend:   cfg.Backend,
-		UseStdin:  useStdin,
+		Task:              taskText,
+		WorkDir:           cfg.WorkDir,
+		Mode:              cfg.Mode,
+		SessionID:         cfg.SessionID,
+		Backend:           cfg.Backend,
+		UseStdin:          useStdin,
+		plannedInvocation: &invocation,
 	}
 
 	return &serialInvocationPlan{
-		Invocation: invocation,
+		Invocation: taskSpec.plannedInvocation,
 		TaskSpec:   taskSpec,
 		Reasons:    serialStdinReasons(taskText, piped, cfg.ExplicitStdin),
 	}, nil

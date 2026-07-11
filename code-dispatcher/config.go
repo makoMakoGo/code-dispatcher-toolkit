@@ -38,6 +38,10 @@ type TaskSpec struct {
 	Mode         string          `json:"-"`
 	UseStdin     bool            `json:"-"`
 	Context      context.Context `json:"-"`
+
+	// plannedInvocation is populated by serial planning so the displayed and
+	// executed command are sourced from the same backend plan.
+	plannedInvocation *BackendInvocation
 }
 
 // TaskResult captures the execution outcome of a task
