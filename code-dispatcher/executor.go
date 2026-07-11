@@ -286,19 +286,12 @@ func newTaskLoggerHandle(taskID string) taskLoggerHandle {
 
 // defaultRunParallelTaskFn is the default implementation of runParallelTaskFn (exposed for test reset)
 func defaultRunParallelTaskFn(task TaskSpec, timeout int) TaskResult {
-	if task.WorkDir == "" {
-		task.WorkDir = defaultWorkdir
-	}
-	if task.Mode == "" {
-		task.Mode = "new"
+	backend, err := selectBackendFn(task.Backend)
+	if err != nil {
+		return TaskResult{TaskID: task.ID, ExitCode: 1, Error: err.Error()}
 	}
 
-	backendName := task.Backend
-	if backendName == "" {
-		backendName = defaultBackendName
-	}
-
-	promptFile := defaultPromptFileForBackend(backendName)
+	promptFile := defaultPromptFileForBackend(backend.Name())
 	if promptFile != "" {
 		prompt, err := readAgentPromptFile(promptFile)
 		if err != nil {
@@ -309,11 +302,6 @@ func defaultRunParallelTaskFn(task TaskSpec, timeout int) TaskResult {
 			task.Task = wrapTaskWithAgentPrompt(prompt, task.Task)
 		}
 	}
-	backend, err := selectBackendFn(backendName)
-	if err != nil {
-		return TaskResult{TaskID: task.ID, ExitCode: 1, Error: err.Error()}
-	}
-	task.Backend = backend.Name()
 	task.UseStdin = task.UseStdin || shouldUseStdin(task.Task, false)
 	task, invocation, err := planTaskInvocation(task, backend)
 	if err != nil {
