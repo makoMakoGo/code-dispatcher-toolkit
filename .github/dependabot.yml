@@ -3,9 +3,12 @@ updates:
   - package-ecosystem: "gomod"
     directory: "/code-dispatcher"
     schedule:
-      interval: "monthly"
+      interval: "quarterly"
+      time: "09:00"
+      timezone: "Asia/Shanghai"
     cooldown:
-      default-days: 30
+      default-days: 60
+    open-pull-requests-limit: 1
     groups:
       go-modules:
         patterns:
@@ -14,9 +17,12 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "monthly"
+      interval: "semiannually"
+      time: "10:00"
+      timezone: "Asia/Shanghai"
     cooldown:
-      default-days: 30
+      default-days: 90
+    open-pull-requests-limit: 1
     groups:
       github-actions:
         patterns:
